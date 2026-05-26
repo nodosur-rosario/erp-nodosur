@@ -169,6 +169,14 @@ export function AddPartDrawer({ isOpen, onClose, articleId }: AddPartDrawerProps
     try {
       const client = getSupabaseClient();
 
+      // Read the active company CUIT from cookie (required by RLS policies)
+      const cuitMatch = document.cookie.match(/(^|;)\s*erp_active_cuit\s*=\s*([^;]+)/);
+      const companyCuit = cuitMatch ? decodeURIComponent(cuitMatch[2]) : null;
+      if (!companyCuit) {
+        setErrorMessage("No se pudo determinar el CUIT activo. Intentá recargar la página.");
+        return;
+      }
+
       const articlePayload = {
         codigo_fabricante: codigoFabricante,
         codigo_barras: codigoBarras || null,
@@ -181,6 +189,7 @@ export function AddPartDrawer({ isOpen, onClose, articleId }: AddPartDrawerProps
         stock_actual: parseInt(stockActual, 10) || 0,
         stock_minimo: parseInt(stockMinimo, 10) || 5,
         ubicacion_deposito: ubicacionDeposito || null,
+        company_cuit: companyCuit,
       };
 
       let finalArticleId = articleId;

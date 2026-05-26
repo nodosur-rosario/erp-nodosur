@@ -12,28 +12,6 @@ import { getSupabaseServerClient } from "@/core/api/supabase";
 
 type AuthResult = { success: true } | { success: false; error: string };
 
-export async function getAuthConfig() {
-  const baseUrl = process.env.NEXT_PUBLIC_INSFORGE_URL;
-
-  if (!baseUrl) {
-    return { oAuthProviders: [] as string[], requireEmailVerification: false, passwordMinLength: 8 };
-  }
-
-  const response = await fetch(`${baseUrl}/api/auth/public-config`, { cache: "no-store" });
-
-  if (!response.ok) {
-    return { oAuthProviders: [] as string[], requireEmailVerification: false, passwordMinLength: 8 };
-  }
-
-  return response.json() as Promise<{
-    requireEmailVerification: boolean;
-    passwordMinLength: number;
-    verifyEmailMethod: string;
-    resetPasswordMethod: string;
-    oAuthProviders: string[];
-  }>;
-}
-
 export async function signIn(email: string, password: string): Promise<AuthResult> {
   const supabase = getSupabaseServerClient();
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });

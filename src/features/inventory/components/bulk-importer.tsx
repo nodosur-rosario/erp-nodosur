@@ -322,6 +322,13 @@ export function BulkImporter({ isOpen, onClose }: BulkImporterProps) {
     try {
       const client = getSupabaseClient();
 
+      // Read the active company CUIT from cookie (required by RLS policies)
+      const cuitMatch = document.cookie.match(/(^|;)\s*erp_active_cuit\s*=\s*([^;]+)/);
+      const companyCuit = cuitMatch ? decodeURIComponent(cuitMatch[2]) : null;
+      if (!companyCuit) {
+        throw new Error("No se pudo determinar el CUIT activo. Intentá recargar la página.");
+      }
+
       const resolvedBrandIds: Record<string, string> = {};
       const resolvedFamilyIds: Record<string, string> = {};
 
@@ -343,7 +350,7 @@ export function BulkImporter({ isOpen, onClose }: BulkImporterProps) {
       // 2. Perform atomic batch insertion of new brands
       const brandsToCreate = detectedBrands.filter((b) => b.action === "create").map((b) => b.rawName);
       if (brandsToCreate.length > 0) {
-        const payload = brandsToCreate.map((name) => ({ nombre: name }));
+        const payload = brandsToCreate.map((name) => ({ nombre: name, company_cuit: companyCuit }));
         const { data, error } = await client.database
           .from("marca")
           .upsert(payload, { onConflict: "nombre" })
@@ -362,7 +369,7 @@ export function BulkImporter({ isOpen, onClose }: BulkImporterProps) {
       // 3. Perform atomic batch insertion of new families (rubros)
       const familiesToCreate = detectedFamilies.filter((f) => f.action === "create").map((f) => f.rawName);
       if (familiesToCreate.length > 0) {
-        const payload = familiesToCreate.map((name) => ({ nombre: name }));
+        const payload = familiesToCreate.map((name) => ({ nombre: name, company_cuit: companyCuit }));
         const { data, error } = await client.database
           .from("familia_repuesto")
           .upsert(payload, { onConflict: "nombre" })
@@ -398,10 +405,13 @@ export function BulkImporter({ isOpen, onClose }: BulkImporterProps) {
 
       setProgress(70);
 
-      // 5. Perform resilient bulk upsert using composite unique index constraint
+      // 5. Inject company_cuit into every article row (required by RLS)
+      const itemsWithCuit = validItems.map((item) => ({ ...item, company_cuit: companyCuit }));
+
+      // 6. Perform resilient bulk upsert using composite unique index constraint
       const { error } = await client.database
         .from("articulo")
-        .upsert(validItems, { onConflict: "codigo_fabricante,marca_id" });
+        .upsert(itemsWithCuit, { onConflict: "codigo_fabricante,marca_id" });
 
       if (error) throw error;
 
