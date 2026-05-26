@@ -18,6 +18,9 @@ type MockChainable = {
   limit: any;
   single: any;
   maybeSingle: any;
+  or: any;
+  is: any;
+  then: any;
   selectResult?: any;
   errorResult?: any;
   insertErrorResult?: any;
@@ -36,12 +39,9 @@ const mockDatabase: MockChainable = {
   }),
   update: vi.fn().mockImplementation(() => mockDatabase),
   delete: vi.fn().mockImplementation(() => mockDatabase),
-  eq: vi.fn().mockImplementation(() => {
-    return Promise.resolve({
-      data: mockDatabase.selectResult,
-      error: mockDatabase.errorResult || null,
-    });
-  }),
+  eq: vi.fn().mockImplementation(() => mockDatabase),
+  or: vi.fn().mockImplementation(() => mockDatabase),
+  is: vi.fn().mockImplementation(() => mockDatabase),
   order: vi.fn().mockImplementation(() => mockDatabase),
   limit: vi.fn().mockImplementation(() => mockDatabase),
   single: vi.fn().mockImplementation(() => {
@@ -55,6 +55,12 @@ const mockDatabase: MockChainable = {
       data: mockDatabase.selectResult, 
       error: mockDatabase.errorResult || null 
     });
+  }),
+  then: vi.fn().mockImplementation((onfulfilled) => {
+    return Promise.resolve({
+      data: mockDatabase.selectResult,
+      error: mockDatabase.errorResult || null,
+    }).then(onfulfilled);
   }),
   selectResult: null,
   errorResult: null,
@@ -85,9 +91,9 @@ describe("Módulo de Contabilidad - Tests de Unidad", () => {
   describe("getAccountingAccounts", () => {
     it("debe retornar el plan de cuentas ordenado jerárquicamente de manera exitosa", async () => {
       const mockAccounts = [
-        { code: "1", name: "Activo", parent_code: null, type: "asset" },
-        { code: "1.1", name: "Activo Corriente", parent_code: "1", type: "asset" },
-        { code: "1.1.1.01", name: "Caja General", parent_code: "1.1", type: "asset" },
+        { code: "1", name: "Activo", parent_code: null, type: "activo" },
+        { code: "1.1", name: "Activo Corriente", parent_code: "1", type: "activo" },
+        { code: "1.1.1.01", name: "Caja General", parent_code: "1.1", type: "activo" },
       ];
 
       mockDatabase.selectResult = mockAccounts;
@@ -220,6 +226,38 @@ describe("Módulo de Contabilidad - Tests de Unidad", () => {
       expect(result.success).toBe(false);
       expect(result.error).toContain("Error al insertar asientos contables: Error de clave foránea");
       // Debe haber llamado a borrar la cabecera huérfana
+      expect(mockDatabase.from).toHaveBeenCalledWith("accounting_transactions");
+      expect(mockDatabase.delete).toHaveBeenCalled();
+    });
+
+    it("debe fallar y propagar el error si el trigger de base de datos Postgres rechaza un asiento desbalanceado", async () => {
+      // Simulamos que la inserción de la cabecera sale bien, pero la inserción de los detalles falla por la restricción de balance de Postgres
+      let calls = 0;
+      mockDatabase.insert = vi.fn().mockImplementation(() => {
+        calls++;
+        if (calls === 1) {
+          return Promise.resolve({ error: null });
+        } else {
+          return Promise.resolve({
+            error: {
+              message: "new row violates deferred trigger balance constraint trg_validar_balance_asiento"
+            }
+          });
+        }
+      });
+
+      // Mock para la acción de compensación delete()
+      mockDatabase.eq = vi.fn().mockImplementation(() => {
+        return Promise.resolve({ error: null });
+      });
+
+      const result = await createManualTransaction("Asiento Rechazado por DB", "2026-05-21", [
+        { account_code: "1.1.1.01", debe: 500, haber: 0 },
+        { account_code: "4.1.1.01", debe: 0, haber: 500 },
+      ]);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("violates deferred trigger balance constraint");
       expect(mockDatabase.from).toHaveBeenCalledWith("accounting_transactions");
       expect(mockDatabase.delete).toHaveBeenCalled();
     });

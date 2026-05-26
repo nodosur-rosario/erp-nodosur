@@ -38,7 +38,7 @@ export default async function DashboardPage() {
   // Consultas asíncronas concurrentes para obtener estadísticas en tiempo real
   const [vouchersRes, articlesRes, cajaRes] = await Promise.all([
     supabase.database
-      .from("afip_vouchers")
+      .from("arca_vouchers")
       .select("total_amount, created_at")
       .eq("company_cuit", activeCuit ?? ""),
     supabase.database

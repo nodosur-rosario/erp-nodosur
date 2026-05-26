@@ -137,7 +137,12 @@ export async function closeCaja(sesionId: string, montoReal: number, notas?: str
     // SUM(debe) === SUM(haber) guaranteed by construction
     const { error: txErr } = await supabase.database
       .from("accounting_transactions")
-      .insert([{ id: transactionId, date: new Date().toISOString(), description: conceptoAjuste }]);
+      .insert([{ 
+        id: transactionId, 
+        date: new Date().toISOString(), 
+        description: conceptoAjuste,
+        company_cuit: sesion.cuit
+      }]);
 
     if (txErr) return { data: null, error: `Error creando transacción de ajuste: ${txErr.message}` };
 

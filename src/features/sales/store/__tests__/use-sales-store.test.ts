@@ -109,4 +109,21 @@ describe("Sales Zustand Store Tests", () => {
     const state = useSalesStore.getState();
     expect(state.paymentMethod).toBe("efectivo");
   });
+
+  it("should update alicuota_iva of a cart item correctly", () => {
+    const store = useSalesStore.getState();
+    const mockItem = {
+      id: "art-1",
+      codigo_fabricante: "F-100",
+      descripcion: "Filtro de Aire Peugeot 208",
+      precio_minorista: 12000,
+      precio_mayorista: 9000,
+    };
+
+    store.addItem(mockItem, "minorista");
+    store.updateAlicuota("art-1", 10.5);
+
+    const updatedState = useSalesStore.getState();
+    expect(updatedState.cart[0].alicuota_iva).toBe(10.5);
+  });
 });

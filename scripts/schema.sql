@@ -175,6 +175,7 @@ CREATE TABLE IF NOT EXISTS public.customer_credit_accounts (
     limite_credito numeric NOT NULL DEFAULT 0.00,
     saldo_actual numeric NOT NULL DEFAULT 0.00,
     created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now(),
     CONSTRAINT customer_credit_accounts_pkey PRIMARY KEY (id)
 );
 

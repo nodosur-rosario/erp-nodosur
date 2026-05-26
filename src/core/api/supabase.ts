@@ -90,6 +90,7 @@ export interface SupabaseEmulatedClient {
     setProfile: (profile: any) => Promise<{ data: any; error: any }>;
     getProfile: (id: string) => Promise<{ data: any; error: any }>;
   };
+  raw?: any;
 }
 
 let serverClient: SupabaseEmulatedClient | null = null;
@@ -119,6 +120,7 @@ function wrapSupabaseClient(supabase: any): SupabaseEmulatedClient {
       from: (table: string) => supabase.from(table),
       rpc: (fn: string, args?: any, options?: any) => supabase.rpc(fn, args, options),
     },
+    raw: supabase,
     auth: {
       signUp: async (params) => {
         const { data, error } = await supabase.auth.signUp({
@@ -266,12 +268,13 @@ function wrapSupabaseClient(supabase: any): SupabaseEmulatedClient {
 
         const { data: dbUser } = await supabase
           .from("users")
-          .select("profile, metadata")
+          .select("role, profile, metadata")
           .eq("id", data.user.id)
           .maybeSingle();
 
         const enrichedUser = {
           ...data.user,
+          role: dbUser?.role || "pending",
           profile: dbUser?.profile || {},
           metadata: dbUser?.metadata || {},
         };
@@ -293,12 +296,13 @@ function wrapSupabaseClient(supabase: any): SupabaseEmulatedClient {
 
         const { data: dbUser } = await supabase
           .from("users")
-          .select("profile, metadata")
+          .select("role, profile, metadata")
           .eq("id", user.id)
           .maybeSingle();
 
         const enrichedUser = {
           ...user,
+          role: dbUser?.role || "pending",
           profile: dbUser?.profile || {},
           metadata: dbUser?.metadata || {},
         };
@@ -348,7 +352,7 @@ export function createSupabaseServerClient(options?: { accessToken?: string }): 
           try {
             const { cookies } = require("next/headers");
             const cookieStore = await cookies();
-            const token = cookieStore.get("insforge_access_token")?.value;
+            const token = cookieStore.get("supabase_access_token")?.value;
             
             const authHeader = headers.get("Authorization");
             const isAnonToken = !authHeader || authHeader === `Bearer ${supabaseKey}`;
@@ -403,7 +407,32 @@ export function getSupabaseClient(): SupabaseEmulatedClient {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
       process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY ||
       "";
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+      global: {
+        fetch: async (input, init) => {
+          const headers = new Headers(init?.headers);
+
+          const tokenMatch = document.cookie.match(/(^|;)\s*supabase_access_token_client\s*=\s*([^;]+)/);
+          const token = tokenMatch ? decodeURIComponent(tokenMatch[2]) : null;
+
+          const authHeader = headers.get("Authorization");
+          const isAnonToken = !authHeader || authHeader === `Bearer ${supabaseKey}`;
+
+          if (token && isAnonToken) {
+            headers.set("Authorization", `Bearer ${token}`);
+          }
+
+          return fetch(input, {
+            ...init,
+            headers,
+          });
+        },
+      },
+    });
     browserClient = wrapSupabaseClient(supabase);
   }
   return browserClient;

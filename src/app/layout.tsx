@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { Toaster } from "sonner";
 
 const themeInitScript = `
 (() => {
@@ -32,7 +33,23 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        {children}
+        <Toaster
+          position="top-right"
+          theme="dark"
+          closeButton
+          toastOptions={{
+            className: "!bg-zinc-950/90 !border-zinc-800/80 !text-zinc-300 font-sans text-[11px] rounded-xl backdrop-blur-md shadow-2xl",
+            style: {
+              background: "rgba(9, 9, 11, 0.9)",
+              backdropFilter: "blur(8px)",
+              borderColor: "rgba(39, 39, 42, 0.8)",
+              color: "#d4d4d8",
+            }
+          }}
+        />
+      </body>
     </html>
   );
 }

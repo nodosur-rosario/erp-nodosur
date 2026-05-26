@@ -58,6 +58,54 @@ vi.mock("@/core/api/supabase", () => {
   };
 });
 
+// Mock node-forge cryptographical tools to isolate unit tests completely and silently
+vi.mock("node-forge", () => {
+  const mockCert = {
+    subject: { getField: () => ({ value: "30717762210" }) }
+  };
+  const mockPrivateKey = {};
+  
+  const mockPkcs7 = {
+    content: null,
+    addCertificate: vi.fn(),
+    addSigner: vi.fn(),
+    sign: vi.fn(),
+    toAsn1: vi.fn().mockReturnValue({
+      getBytes: vi.fn().mockReturnValue("mock-der-bytes")
+    })
+  };
+
+  return {
+    default: {
+      pki: {
+        certificateFromPem: vi.fn().mockReturnValue(mockCert),
+        privateKeyFromPem: vi.fn().mockReturnValue(mockPrivateKey),
+        oids: {
+          sha256: "2.16.840.1.101.3.4.2.1",
+          contentType: "1.2.840.113549.1.9.3",
+          data: "1.2.840.113549.1.7.1",
+          messageDigest: "1.2.840.113549.1.9.4",
+          signingTime: "1.2.840.113549.1.9.5"
+        }
+      },
+      pkcs7: {
+        createSignedData: vi.fn().mockReturnValue(mockPkcs7)
+      },
+      asn1: {
+        toDer: vi.fn().mockReturnValue({
+          getBytes: vi.fn().mockReturnValue("mock-der-bytes")
+        })
+      },
+      util: {
+        createBuffer: vi.fn().mockReturnValue({
+          getBytes: vi.fn().mockReturnValue("mock-bytes")
+        }),
+        encode64: vi.fn().mockReturnValue("mock-cms-base64-encoded")
+      }
+    }
+  };
+});
+
 describe("ARCA Fiscal Simulation and Adapter Service Tests", () => {
   const originalFetch = global.fetch;
   const mockFetch = vi.fn();
@@ -160,7 +208,7 @@ describe("ARCA Fiscal Simulation and Adapter Service Tests", () => {
     expect(body.imp_total).toBe(1210.0);
   });
 
-  it("should fail and block when environment is 'production' or 'homologation' but mock skeleton throws error", async () => {
+  it("should fail and block when environment is 'production' or 'homologation' with invalid certificate credentials", async () => {
     // Setup credentials in DB with real production environment
     mockDatabase.maybeSingleResult = {
       id: "cred-123",
@@ -180,6 +228,13 @@ describe("ARCA Fiscal Simulation and Adapter Service Tests", () => {
       };
     });
 
+    // Mock fetch for WSAA login ticket request to fail realistically with HTTP 500
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      text: async () => "Simulated WSAA physical connection failure for test"
+    });
+
     const payload = {
       tipo_cbte: 1, // Factura A
       doc_tipo: 80, // CUIT
@@ -196,6 +251,6 @@ describe("ARCA Fiscal Simulation and Adapter Service Tests", () => {
 
     expect(result.success).toBe(false);
     expect(result.cae).toBe("");
-    expect(result.error).toContain("requiere un CUIT y un punto de venta real habilitado por ARCA");
+    expect(result.error).toContain("Falla en WSAA");
   });
 });

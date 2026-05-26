@@ -16,7 +16,7 @@ const CUENTAS_CONTRAPARTE = [
   { code: "5.1.1.02", label: "Fletes, Envíos y Logística" },
   { code: "2.1.1.01", label: "Proveedores Comerciales" },
   { code: "4.1.1.01", label: "Ventas de Repuestos / Autopartes" },
-  { code: "1.1.2.02", label: "Banco Cta. Cte. / Depósito" },
+  { code: "1.1.1.02", label: "Banco Cta. Cte. / Depósito" },
 ];
 
 export function FormMovimientoModal({ sesionId, onClose }: FormMovimientoModalProps) {

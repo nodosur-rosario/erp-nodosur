@@ -7,49 +7,64 @@ const red = '\x1b[31m';
 const reset = '\x1b[0m';
 
 async function updateContext() {
-  console.log('[Context Updater] Iniciando actualización de CONTEXT.md de manera directa...');
+  console.log('[Context Updater] Iniciando actualización de CONTEXT.md desde Supabase...');
 
-  // 1. Read project details
-  const projectJsonPath = path.join(__dirname, '../.insforge/project.json');
-  if (!fs.existsSync(projectJsonPath)) {
-    console.error(`${red}[Error] No se encontró .insforge/project.json en la ruta especificada.${reset}`);
+  // 1. Read .env.local to get Supabase config
+  const envLocalPath = path.join(__dirname, '../.env.local');
+  if (!fs.existsSync(envLocalPath)) {
+    console.error(`${red}[Error] No se encontró .env.local en la raíz del proyecto.${reset}`);
     process.exit(1);
   }
 
-  const projectConfig = JSON.parse(fs.readFileSync(projectJsonPath, 'utf8'));
-  const { api_key, oss_host } = projectConfig;
+  const envContent = fs.readFileSync(envLocalPath, 'utf8');
+  const supabaseUrlMatch = envContent.match(/NEXT_PUBLIC_SUPABASE_URL\s*=\s*(.+)/);
+  const supabaseKeyMatch = envContent.match(/NEXT_PUBLIC_SUPABASE_ANON_KEY\s*=\s*(.+)/);
 
-  if (!api_key || !oss_host) {
-    console.error(`${red}[Error] Claves api_key u oss_host ausentes en project.json.${reset}`);
+  if (!supabaseUrlMatch || !supabaseKeyMatch) {
+    console.error(`${red}[Error] NEXT_PUBLIC_SUPABASE_URL o NEXT_PUBLIC_SUPABASE_ANON_KEY no están definidos en .env.local.${reset}`);
     process.exit(1);
   }
+
+  const supabaseUrl = supabaseUrlMatch[1].trim().replace(/['"]/g, '');
+  const supabaseKey = supabaseKeyMatch[1].trim().replace(/['"]/g, '');
 
   // 2. Define tables to audit
   const tables = [
-    { name: 'users', desc: 'Perfiles de usuario públicos' },
+    { name: 'users', desc: 'Perfiles de usuario de Supabase Auth' },
     { name: 'company_profile', desc: 'Perfiles fiscales de las empresas registradas' },
     { name: 'customers', desc: 'Clientes y proveedores del ERP' },
-    { name: 'inventory', desc: 'Catálogo de artículos, precios e inventario' },
-    { name: 'afip_vouchers', desc: 'Comprobantes electrónicos autorizados ante AFIP' },
-    { name: 'accounting_accounts', desc: 'Plan de cuentas jerárquico' },
-    { name: 'accounting_transactions', desc: 'Asientos contables cabecera' },
-    { name: 'accounting_entries', desc: 'Líneas de asiento (Debe / Haber)' },
-    { name: 'customer_credit_accounts', desc: 'Cuentas corrientes y límites de crédito por CUIT' },
-    { name: 'customer_credit_movements', desc: 'Historial de movimientos de Cuenta Corriente' },
-    { name: 'arca_credentials', desc: 'Credenciales fiscales y llaves encriptadas de ARCA' }
+    { name: 'inventory', desc: 'Catálogo de inventario (esquema heredado)' },
+    { name: 'articulo', desc: 'Catálogo de autopartes principal' },
+    { name: 'marca', desc: 'Marcas de autopartes' },
+    { name: 'familia_repuesto', desc: 'Familias o categorías de repuestos' },
+    { name: 'grupo_equivalencia', desc: 'Grupos de equivalencias entre repuestos' },
+    { name: 'auto_marca', desc: 'Marcas de automóviles normalizadas' },
+    { name: 'auto_modelo', desc: 'Modelos de automóviles normalizados' },
+    { name: 'auto_version', desc: 'Versiones y motorizaciones de automóviles' },
+    { name: 'articulo_compatibilidad', desc: 'Compatibilidades M-N entre artículos y vehículos' },
+    { name: 'alicuota_iva', desc: 'Alícuotas de IVA granulares de ARCA (ex-AFIP)' },
+    { name: 'afip_vouchers', desc: 'Comprobantes electrónicos (CAE/Facturas/Remitos)' },
+    { name: 'caja_sesion', desc: 'Sesiones de caja diaria por cajero y CUIT' },
+    { name: 'caja_movimiento', desc: 'Movimientos de ingreso/egreso de caja diaria' },
+    { name: 'customer_credit_accounts', desc: 'Cuentas corrientes de clientes mayoristas' },
+    { name: 'customer_credit_movements', desc: 'Movimientos de débito/crédito de cuenta corriente' },
+    { name: 'accounting_accounts', desc: 'Plan de cuentas jerárquico contable' },
+    { name: 'accounting_transactions', desc: 'Asientos contables - Cabecera' },
+    { name: 'accounting_entries', desc: 'Asientos contables - Líneas de Debe y Haber' },
+    { name: 'arca_credentials', desc: 'Credenciales fiscales y certificados de ARCA' }
   ];
 
   const tableResults = [];
 
-  // 3. Query each table count from InsForge via native fetch
+  // 3. Query each table count from Supabase REST API via native fetch
   for (const table of tables) {
     try {
-      const url = `${oss_host}/api/database/records/${table.name}`;
+      const url = `${supabaseUrl}/rest/v1/${table.name}`;
       const response = await fetch(url, {
         method: 'HEAD',
         headers: {
-          'Authorization': `Bearer ${api_key}`,
-          'apikey': api_key,
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
           'Prefer': 'count=exact'
         }
       });
@@ -58,7 +73,6 @@ async function updateContext() {
         throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
       }
 
-      // Read Content-Range header to parse count: "0-0/2" -> 2
       const contentRange = response.headers.get('content-range');
       let recordCount = 0;
       if (contentRange) {
@@ -95,90 +109,135 @@ async function updateContext() {
 
 ## 🌐 Información del Backend
 
-- **URL Base**: \`${oss_host}\`
+- **URL Base**: \`${supabaseUrl}\`
 - **Fecha de Actualización**: ${timestamp} (ARG)
 
-## 📊 Estado de las Tablas y Registros
+## 📊 Estado de las Tablas y Registros (Supabase Live)
 
 | Tabla | Descripción | Registros | RLS |
 | :--- | :--- | :---: | :---: |
 `;
 
   for (const row of tableResults) {
-    markdown += `| \`${row.name}\` | ${row.desc} | \`${row.count}\` | Activo (Simulación) |\n`;
+    markdown += `| \`${row.name}\` | ${row.desc} | \`${row.count}\` | Activo (RLS Habilitado) |\n`;
   }
 
   markdown += `
 ## 🛠️ Esquemas de Base de Datos y Tipos
 
 ### 📋 Tabla: \`users\`
-
-**Campos y estructura detectados (ejemplo):**
-
 \`\`\`json
 {
-  "id": "00000000-0000-0000-0000-000000000001",
-  "email": "admin@example.com",
-  "profile": {
-    "name": "Administrator"
-  },
-  "metadata": {},
-  "created_at": "2026-05-18T01:31:05.18207+00:00",
-  "updated_at": "2026-05-18T01:31:05.18207+00:00"
+  "id": "text (UUID de Auth, PK)",
+  "email": "text (unique)",
+  "profile": "jsonb",
+  "metadata": "jsonb",
+  "created_at": "timestamp",
+  "updated_at": "timestamp"
 }
 \`\`\`
 
 ### 📋 Tabla: \`company_profile\`
-
-**Campos y estructura detectados (ejemplo):**
-
 \`\`\`json
 {
-  "cuit": "30717762210",
-  "razon_social": "Prueba 1",
-  "nombre_fantasia": "Retazo",
-  "condicion_iva": "Responsable Inscripto",
-  "ingresos_brutos": null,
-  "inicio_actividades": null,
-  "direccion": "Calle F 332",
-  "punto_venta": 1,
-  "afip_mode": "edge_simulation",
-  "afip_cert": null,
-  "afip_key": null
+  "cuit": "text (PK)",
+  "razon_social": "text",
+  "nombre_fantasia": "text",
+  "condicion_iva": "text",
+  "ingresos_brutos": "text",
+  "inicio_actividades": "text",
+  "direccion": "text",
+  "punto_venta": "integer",
+  "afip_mode": "text",
+  "celular": "text",
+  "email": "text"
 }
 \`\`\`
 
-### 📋 Tabla: \`customers\`
-*Tabla vacía. Aún no hay registros cargados para inferir estructura.*
+### 📋 Tabla: \`articulo\`
+\`\`\`json
+{
+  "id": "uuid (PK)",
+  "codigo_fabricante": "varchar",
+  "codigo_barras": "varchar",
+  "descripcion": "text",
+  "marca_id": "uuid (FK)",
+  "familia_id": "uuid (FK)",
+  "grupo_equivalencia_id": "uuid (FK)",
+  "precio_costo": "numeric",
+  "precio_minorista": "numeric",
+  "precio_mayorista": "numeric",
+  "stock_actual": "integer",
+  "stock_minimo": "integer",
+  "ubicacion_deposito": "varchar",
+  "created_at": "timestamp"
+}
+\`\`\`
 
-### 📋 Tabla: \`inventory\`
-*Tabla vacía. Aún no hay registros cargados para inferir estructura.*
+### 📋 Tabla: \`alicuota_iva\`
+\`\`\`json
+{
+  "codigo_afip": "integer (PK)",
+  "descripcion": "varchar",
+  "porcentaje": "numeric (unique)",
+  "activa": "boolean",
+  "created_at": "timestamp"
+}
+\`\`\`
 
 ### 📋 Tabla: \`afip_vouchers\`
-*Tabla vacía. Aún no hay registros cargados para inferir estructura.*
+\`\`\`json
+{
+  "id": "text (PK)",
+  "company_cuit": "text",
+  "type": "text",
+  "client_cuit": "text",
+  "client_name": "text",
+  "net_amount": "numeric",
+  "iva_amount": "numeric",
+  "total_amount": "numeric",
+  "cae": "text",
+  "cae_expiration": "text",
+  "qr_link": "text",
+  "items": "jsonb (inmutable)",
+  "created_at": "timestamp"
+}
+\`\`\`
 
 ### 📋 Tabla: \`accounting_accounts\`
-*Tabla vacía. Aún no hay registros cargados para inferir estructura.*
+\`\`\`json
+{
+  "code": "text (PK)",
+  "name": "text",
+  "parent_code": "text",
+  "type": "text"
+}
+\`\`\`
 
 ### 📋 Tabla: \`accounting_transactions\`
-*Tabla vacía. Aún no hay registros cargados para inferir estructura.*
+\`\`\`json
+{
+  "id": "text (PK)",
+  "date": "timestamp",
+  "description": "text"
+}
+\`\`\`
 
 ### 📋 Tabla: \`accounting_entries\`
-*Tabla vacía. Aún no hay registros cargados para inferir estructura.*
-
-### 📋 Tabla: \`customer_credit_accounts\`
-*Tabla vacía. Aún no hay registros cargados para inferir estructura.*
-
-### 📋 Tabla: \`customer_credit_movements\`
-*Tabla vacía. Aún no hay registros cargados para inferir estructura.*
-
-### 📋 Tabla: \`arca_credentials\`
-*Tabla vacía. Aún no hay registros cargados para inferir estructura.*
+\`\`\`json
+{
+  "id": "integer (PK, serial)",
+  "transaction_id": "text (FK)",
+  "account_code": "text (FK)",
+  "debe": "numeric",
+  "haber": "numeric"
+}
+\`\`\`
 `;
 
   const contextMdPath = path.join(__dirname, '../CONTEXT.md');
   fs.writeFileSync(contextMdPath, markdown, 'utf8');
-  console.log(`${green}✅ ¡CONTEXT.md actualizado con éxito!${reset}`);
+  console.log(`${green}✅ ¡CONTEXT.md actualizado con éxito desde Supabase!${reset}`);
 }
 
 updateContext();

@@ -41,6 +41,19 @@ import {
   CreditAccount,
   CreditMovement,
 } from "@/features/customers/services/credit-service";
+import CreditAllocator from "./components/credit-allocator";
+
+// Generador de UUIDv4 compatible con contextos no seguros (HTTP / IP local)
+function generateUUID() {
+  if (typeof window !== "undefined" && window.crypto && window.crypto.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
 
 // ---------- Types ----------
 interface Customer {
@@ -89,6 +102,39 @@ export default function ClientesPage() {
     phone: "",
   });
   const [saving, setSaving] = useState(false);
+  const [loadingArca, setLoadingArca] = useState(false);
+
+  // Automatically query ARCA WSPUC (Padrón) if input has 11 digits (CUIT) and we are creating a new customer
+  useEffect(() => {
+    const queryCuit = formData.cuit.trim().replace(/\D/g, "");
+    if (queryCuit.length === 11 && /^\d+$/.test(queryCuit) && !editingCustomer && showModal) {
+      const fetchArcaData = async () => {
+        setLoadingArca(true);
+        try {
+          const companyCuit = activeCompany?.cuit || "20371024094";
+          const res = await fetch(`/api/arca/padron/${queryCuit}?companyCuit=${companyCuit}`);
+          const result = await res.json();
+          if (result.success && result.data) {
+            setFormData((prev) => ({
+              ...prev,
+              razon_social: result.data.razonSocial,
+              condicion_iva: result.data.condicionIva,
+              direccion: result.data.direccion || prev.direccion,
+            }));
+            toast.success("Contribuyente localizado y autocompletado desde ARCA / AFIP.");
+          } else {
+            toast.error(result.error || "No se pudo localizar el CUIT en ARCA.");
+          }
+        } catch (err) {
+          console.error("Error al consultar padrón ARCA:", err);
+          toast.error("Error de conexión con el padrón fiscal.");
+        } finally {
+          setLoadingArca(false);
+        }
+      };
+      fetchArcaData();
+    }
+  }, [formData.cuit, editingCustomer, showModal, activeCompany]);
 
   // Delete confirmation
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -116,6 +162,8 @@ export default function ClientesPage() {
   const [paymentDesc, setPaymentDesc] = useState("");
   const [recordingPayment, setRecordingPayment] = useState(false);
   const [activeCashSession, setActiveCashSession] = useState<any | null>(null);
+  const [showAllocationModal, setShowAllocationModal] = useState(false);
+
 
   // ---------- Data Fetching ----------
   const fetchCustomers = async () => {
@@ -204,7 +252,7 @@ export default function ClientesPage() {
     try {
       const client = getSupabaseClient();
       const { data, error } = await client.database
-        .from("afip_vouchers")
+        .from("arca_vouchers")
         .select("id, type, total_amount, created_at")
         .eq("client_cuit", cuit)
         .eq("company_cuit", activeCompany.cuit)
@@ -290,6 +338,10 @@ export default function ClientesPage() {
       toast.warning("La Razón Social es obligatoria.");
       return;
     }
+    if (!activeCompany) {
+      toast.error("Debe tener una empresa activa para registrar clientes.");
+      return;
+    }
 
     setSaving(true);
     try {
@@ -301,6 +353,7 @@ export default function ClientesPage() {
         direccion: formData.direccion.trim() || null,
         email: formData.email.trim() || null,
         phone: formData.phone.trim() || null,
+        company_cuit: activeCompany.cuit, // <-- REQUERIDO PARA POLÍTICAS DE RLS
       };
 
       if (editingCustomer) {
@@ -313,7 +366,7 @@ export default function ClientesPage() {
         toast.success(`Cliente "${payload.razon_social}" actualizado.`);
       } else {
         // Insert new
-        const newCustomer = { id: crypto.randomUUID(), ...payload };
+        const newCustomer = { id: generateUUID(), ...payload };
         const { error } = await client.database
           .from("customers")
           .insert([newCustomer]);
@@ -1039,19 +1092,30 @@ export default function ClientesPage() {
                           </div>
 
                           {/* Quick Payment Button */}
-                          {parseFloat(String(creditAccount.saldo_actual)) > 0 && (
+                          <div className="space-y-2">
+                            {parseFloat(String(creditAccount.saldo_actual)) > 0 && (
+                              <button
+                                onClick={() => {
+                                  setPaymentAmount(String(creditAccount.saldo_actual));
+                                  setPaymentDesc(`Cobro parcial/total - ${selectedCustomer.razon_social}`);
+                                  setShowPaymentModal(true);
+                                }}
+                                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-xs font-black text-black transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-amber-500/10 hover:scale-[1.01]"
+                              >
+                                <Coins className="w-4 h-4" />
+                                <span>Registrar Cobro de Deuda</span>
+                              </button>
+                            )}
+
                             <button
-                              onClick={() => {
-                                setPaymentAmount(String(creditAccount.saldo_actual));
-                                setPaymentDesc(`Cobro parcial/total - ${selectedCustomer.razon_social}`);
-                                setShowPaymentModal(true);
-                              }}
-                              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-xs font-black text-black transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-amber-500/10 hover:scale-[1.01]"
+                              onClick={() => setShowAllocationModal(true)}
+                              className="w-full py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-zinc-850 hover:border-zinc-700 text-xs font-bold text-zinc-300 hover:text-white transition-all flex items-center justify-center gap-1.5 shadow-lg hover:scale-[1.01]"
                             >
-                              <Coins className="w-4 h-4" />
-                              <span>Registrar Cobro de Deuda</span>
+                              <Coins className="w-4 h-4 text-emerald-400" />
+                              <span>Imputar Saldos / Conciliar Cuenta</span>
                             </button>
-                          )}
+                          </div>
+
 
                           {/* Cash Drawer Status Alert */}
                           {!activeCashSession && (
@@ -1185,13 +1249,18 @@ export default function ClientesPage() {
                       onChange={(e) =>
                         setFormData((prev) => ({
                           ...prev,
-                          cuit: e.target.value,
+                          cuit: e.target.value.replace(/\D/g, "").slice(0, 11),
                         }))
                       }
                       placeholder="30123456789"
                       disabled={!!editingCustomer}
-                      className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-zinc-900 border border-zinc-850 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500/40 font-mono disabled:opacity-50"
+                      className="w-full pl-9 pr-10 py-2.5 rounded-xl bg-zinc-900 border border-zinc-850 text-xs text-white placeholder-zinc-650 focus:outline-none focus:border-amber-500/40 font-mono disabled:opacity-50"
                     />
+                    {loadingArca && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <Loader2 className="w-3.5 h-3.5 text-amber-500 animate-spin" />
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="space-y-1.5">
@@ -1505,6 +1574,20 @@ export default function ClientesPage() {
           </div>
         </div>
       )}
+      {/* 8. Credit Allocation Modal */}
+      {showAllocationModal && selectedCustomer && creditAccount && (
+        <CreditAllocator
+          isOpen={showAllocationModal}
+          onClose={() => setShowAllocationModal(false)}
+          customer={selectedCustomer}
+          creditAccount={creditAccount}
+          companyCuit={activeCompany?.cuit || "20371024094"}
+          onSuccess={() => {
+            fetchCustomerCreditData(selectedCustomer.id);
+          }}
+        />
+      )}
     </div>
+
   );
 }

@@ -36,6 +36,49 @@ export function OnboardingWizard({ initialCuit, initialPuntoVenta, initialRazonS
   // States to hold the output files
   const [csrText, setCsrText] = useState<string | null>(null);
   const [uploadedCert, setUploadedCert] = useState<string>("");
+  const [isDragActive, setIsDragActive] = useState(false);
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setIsDragActive(true);
+    } else if (e.type === "dragleave") {
+      setIsDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragActive(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      handleFile(e.target.files[0]);
+    }
+  };
+
+  const handleFile = (file: File) => {
+    addLog(`Leyendo archivo de certificado seleccionado: ${file.name} (${file.size} bytes)...`);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      if (text?.includes("-----BEGIN CERTIFICATE-----")) {
+        setUploadedCert(text);
+        addLog("✅ Certificado PEM cargado exitosamente del archivo.");
+      } else {
+        setError("El archivo no parece ser un certificado PEM válido (debe contener -----BEGIN CERTIFICATE-----).");
+        addLog("❌ Error: Formato de certificado no válido.");
+      }
+    };
+    reader.readAsText(file);
+  };
   
   // Real-time console logs inside the wizard
   const [consoleLogs, setConsoleLogs] = useState<string[]>([
@@ -356,9 +399,9 @@ export function OnboardingWizard({ initialCuit, initialPuntoVenta, initialRazonS
                       <Key className="w-10 h-10" />
                     </div>
                     <div className="space-y-1 max-w-md">
-                      <h4 className="text-sm font-bold text-white">Generación Local de Par de Claves</h4>
+                      <h4 className="text-sm font-bold text-white">Generación de Par de Claves en Servidor Seguro</h4>
                       <p className="text-xs text-zinc-400">
-                        Se generará una clave privada RSA de 2048 bits de forma 100% interna en tu navegador utilizando <span className="font-mono text-zinc-300">node-forge</span>. 
+                        Se generará un par de llaves RSA de 2048 bits de forma segura en nuestro servidor Node.js utilizando <span className="font-mono text-zinc-300">node-forge</span>.
                       </p>
                     </div>
                   </div>
@@ -418,32 +461,69 @@ export function OnboardingWizard({ initialCuit, initialPuntoVenta, initialRazonS
                   {/* AFIP Steps Guide */}
                   <div className="rounded-xl border border-zinc-800/80 bg-zinc-950/40 p-4 space-y-3 text-xs">
                     <p className="font-bold text-white border-b border-zinc-850 pb-2">Pasos en la web de AFIP/ARCA:</p>
-                    <ol className="list-decimal pl-4 text-zinc-400 space-y-2 leading-relaxed">
-                      <li>Ingresa a la web de AFIP con tu Clave Fiscal (Nivel 3).</li>
-                      <li>Accede al servicio <span className="text-white font-semibold">Administración de Certificados Digitales</span>.</li>
-                      <li>Agrega una nueva clave o alias para ZenERP y carga el archivo <span className="text-amber-400 font-mono">.csr</span> que acabas de descargar.</li>
-                      <li>Descarga el certificado digital en formato <span className="text-white font-semibold">.crt</span> generado por AFIP.</li>
-                      <li>(Opcional) Delega el servicio de <span className="text-white font-semibold">Facturación Electrónica (WSFE)</span> a este alias en la web de AFIP.</li>
+                    <ol className="list-decimal pl-4 text-zinc-400 space-y-2.5 leading-relaxed">
+                      <li>
+                        Ingresa al <a href="https://auth.afip.gob.ar/contribuyente_/login.xhtml" target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:underline font-bold">Portal de AFIP Oficial</a> con tu Clave Fiscal (Nivel 3).
+                      </li>
+                      <li>Accede al servicio <span className="text-white font-semibold">Administración de Certificados Digitales</span> (si no lo tienes, debes adherirlo desde el Administrador de Relaciones).</li>
+                      <li>Agrega una nueva clave o alias para ZenERP y carga el archivo <span className="text-amber-400 font-mono font-bold">.csr</span> que acabas de descargar.</li>
+                      <li>Descarga el certificado digital en formato <span className="text-white font-semibold font-bold">.crt</span> generado por AFIP.</li>
+                      <li>(Opcional) Realiza la delegación del servicio de <span className="text-white font-semibold">Facturación Electrónica (WSFE)</span> a este nuevo alias en el portal de AFIP.</li>
                     </ol>
                   </div>
                 </div>
               )}
 
-              {/* Step 4: Paste CRT */}
+              {/* Step 4: Paste / Upload CRT */}
               {step === 4 && (
                 <div className="space-y-4 animate-fade-in">
                   <p className="text-xs text-zinc-400 leading-relaxed">
-                    Copia y pega el contenido completo del certificado digital (.crt) emitido por ARCA / AFIP. Debe tener el formato estándar PEM que comienza con <span className="font-mono text-zinc-200">-----BEGIN CERTIFICATE-----</span>.
+                    Carga el archivo de certificado digital (.crt) emitido por ARCA / AFIP, o copia y pega su contenido PEM completo.
                   </p>
 
+                  {/* Drag & Drop Zone */}
+                  <div
+                    onDragEnter={handleDrag}
+                    onDragOver={handleDrag}
+                    onDragLeave={handleDrag}
+                    onDrop={handleDrop}
+                    className={`relative border-2 border-dashed rounded-xl p-6 transition-all flex flex-col items-center justify-center text-center cursor-pointer ${
+                      isDragActive
+                        ? "border-amber-500 bg-amber-500/5 text-amber-400"
+                        : "border-zinc-800 bg-zinc-950/40 hover:border-zinc-700 text-zinc-400"
+                    }`}
+                  >
+                    <input
+                      type="file"
+                      id="cert-file"
+                      accept=".crt,.pem,.txt"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                    <label htmlFor="cert-file" className="cursor-pointer w-full h-full flex flex-col items-center justify-center space-y-2">
+                      <Upload className="w-8 h-8 text-amber-500/80" />
+                      <div className="text-xs">
+                        <span className="text-amber-400 font-bold hover:underline">Selecciona un archivo .crt</span> o arrástralo aquí
+                      </div>
+                      <p className="text-[10px] text-zinc-500">Estándar PEM compatible con x509 de AFIP</p>
+                    </label>
+                  </div>
+
+                  {uploadedCert && (
+                    <div className="flex gap-2 items-center p-3 rounded-lg bg-green-500/5 border border-green-500/10 text-green-400 text-xs">
+                      <CheckCircle className="w-4 h-4 text-green-400 shrink-0" />
+                      <span>Certificado PEM cargado exitosamente.</span>
+                    </div>
+                  )}
+
                   <div className="space-y-2">
-                    <label className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Certificado Digital (CRT en formato PEM)</label>
+                    <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Edición Manual (PEM)</label>
                     <textarea
                       value={uploadedCert}
                       onChange={(e) => setUploadedCert(e.target.value)}
                       placeholder="-----BEGIN CERTIFICATE-----&#10;MIIEowIBAAKCAQEA0Y3...&#10;-----END CERTIFICATE-----"
-                      rows={6}
-                      className="w-full p-3 rounded-xl bg-zinc-950 border border-zinc-850 text-xs text-zinc-200 focus:border-amber-500/50 focus:outline-none transition-colors font-mono resize-none leading-relaxed"
+                      rows={4}
+                      className="w-full p-3 rounded-xl bg-zinc-950 border border-zinc-850 text-[10px] text-zinc-300 focus:border-amber-500/50 focus:outline-none transition-colors font-mono resize-none leading-relaxed"
                     />
                   </div>
 

@@ -24,6 +24,12 @@
 .DS_Store
 *.pem
 
+# ARCA fiscal credentials and certs
+.cert/
+*.key
+*.crt
+*.csr
+
 # debug
 npm-debug.log*
 yarn-debug.log*
@@ -42,7 +48,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
 
 # InsForge & AI agent skills
 .insforge
@@ -70,5 +75,6 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
 # Local AI runtime state
 .atl/

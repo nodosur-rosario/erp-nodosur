@@ -6,6 +6,7 @@ import { MetricasTarjetas } from "./metricas-tarjetas";
 import { FormMovimientoModal } from "./form-movimiento-modal";
 import { FormCierreModal } from "./form-cierre-modal";
 import type { CajaSession, CajaMovimiento } from "@/features/caja/caja-store";
+import { useSecretStore } from "@/features/sales/store/use-secret-store";
 
 interface CajaAbiertaViewProps {
   session: CajaSession;
@@ -18,13 +19,29 @@ export function CajaAbiertaView({ session, movimientos }: CajaAbiertaViewProps) 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterTipo, setFilterTipo] = useState<"todos" | "ingreso" | "egreso">("todos");
 
-  const movimientosFiltrados = movimientos.filter((m) => {
+  const showCajaNegra = useSecretStore((state) => state.showCajaNegra);
+
+  const movimientosVisibles = movimientos.filter((m) => {
+    if (!showCajaNegra && m.canal === "interno") return false;
+    return true;
+  });
+
+  const movimientosFiltrados = movimientosVisibles.filter((m) => {
     const matchSearch =
       m.concepto.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (m.accounting_transaction_id && m.accounting_transaction_id.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchTipo = filterTipo === "todos" || m.tipo === filterTipo;
     return matchSearch && matchTipo;
   });
+
+  const montoInicial = Number(session.monto_inicial);
+  const totalIngresos = movimientosVisibles
+    .filter((m) => m.tipo === "ingreso")
+    .reduce((sum, m) => sum + Number(m.monto), 0);
+  const totalEgresos = movimientosVisibles
+    .filter((m) => m.tipo === "egreso")
+    .reduce((sum, m) => sum + Number(m.monto), 0);
+  const currentMontoTeorico = montoInicial + totalIngresos - totalEgresos;
 
   return (
     <div className="space-y-8 animate-fade-in-up">
@@ -60,7 +77,7 @@ export function CajaAbiertaView({ session, movimientos }: CajaAbiertaViewProps) 
       </div>
 
       {/* Metrics */}
-      <MetricasTarjetas session={session} movimientos={movimientos} />
+      <MetricasTarjetas session={session} movimientos={movimientosVisibles} />
 
       {/* Movements table */}
       <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/10 overflow-hidden backdrop-blur-xl">
@@ -113,7 +130,17 @@ export function CajaAbiertaView({ session, movimientos }: CajaAbiertaViewProps) 
                     <td className="text-xs text-zinc-400 px-6 py-4 font-mono tabular-nums">
                       {new Date(m.fecha).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })} hs
                     </td>
-                    <td className="text-xs text-zinc-200 px-6 py-4 font-medium">{m.concepto}</td>
+                    <td className="text-xs text-zinc-200 px-6 py-4 font-medium">
+                      <div className="flex items-center gap-1.5">
+                        {m.canal === "interno" && (
+                          <span 
+                            className="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0 animate-pulse" 
+                            title="Caja Negra (Canal Interno)" 
+                          />
+                        )}
+                        <span>{m.concepto}</span>
+                      </div>
+                    </td>
                     <td className="text-xs text-zinc-500 px-6 py-4 font-mono">{m.accounting_transaction_id || "—"}</td>
                     <td
                       className={`text-xs px-6 py-4 font-mono font-bold text-right tabular-nums ${
@@ -136,7 +163,7 @@ export function CajaAbiertaView({ session, movimientos }: CajaAbiertaViewProps) 
         <FormMovimientoModal sesionId={session.id} onClose={() => setShowMovimientoModal(false)} />
       )}
       {showCierreModal && (
-        <FormCierreModal sesionId={session.id} montoTeorico={session.monto_teorico} onClose={() => setShowCierreModal(false)} />
+        <FormCierreModal sesionId={session.id} montoTeorico={currentMontoTeorico} onClose={() => setShowCierreModal(false)} />
       )}
     </div>
   );

@@ -4,87 +4,143 @@
 
 ## 🌐 Información del Backend
 
-- **URL Base**: `https://hedg3sx9.us-east.insforge.app`
-- **Fecha de Actualización**: 22/5/2026, 00:56:56 (ARG)
+- **URL Base**: `https://xrmhsluabxlrdfgqajwj.supabase.co`
+- **Fecha de Actualización**: 24/5/2026, 09:11:09 (ARG)
 
-## 📊 Estado de las Tablas y Registros
+## 📊 Estado de las Tablas y Registros (Supabase Live)
 
 | Tabla | Descripción | Registros | RLS |
 | :--- | :--- | :---: | :---: |
-| `users` | Perfiles de usuario públicos | `0` | Activo (Simulación) |
-| `company_profile` | Perfiles fiscales de las empresas registradas | `2` | Activo (Simulación) |
-| `customers` | Clientes y proveedores del ERP | `2` | Activo (Simulación) |
-| `inventory` | Catálogo de artículos, precios e inventario | `0` | Activo (Simulación) |
-| `afip_vouchers` | Comprobantes electrónicos autorizados ante AFIP | `0` | Activo (Simulación) |
-| `accounting_accounts` | Plan de cuentas jerárquico | `30` | Activo (Simulación) |
-| `accounting_transactions` | Asientos contables cabecera | `0` | Activo (Simulación) |
-| `accounting_entries` | Líneas de asiento (Debe / Haber) | `0` | Activo (Simulación) |
-| `customer_credit_accounts` | Cuentas corrientes y límites de crédito por CUIT | `1` | Activo (Simulación) |
-| `customer_credit_movements` | Historial de movimientos de Cuenta Corriente | `0` | Activo (Simulación) |
-| `arca_credentials` | Credenciales fiscales y llaves encriptadas de ARCA | `1` | Activo (Simulación) |
+| `users` | Perfiles de usuario de Supabase Auth | `0` | Activo (RLS Habilitado) |
+| `company_profile` | Perfiles fiscales de las empresas registradas | `0` | Activo (RLS Habilitado) |
+| `customers` | Clientes y proveedores del ERP | `0` | Activo (RLS Habilitado) |
+| `inventory` | Catálogo de inventario (esquema heredado) | `0` | Activo (RLS Habilitado) |
+| `articulo` | Catálogo de autopartes principal | `0` | Activo (RLS Habilitado) |
+| `marca` | Marcas de autopartes | `0` | Activo (RLS Habilitado) |
+| `familia_repuesto` | Familias o categorías de repuestos | `0` | Activo (RLS Habilitado) |
+| `grupo_equivalencia` | Grupos de equivalencias entre repuestos | `0` | Activo (RLS Habilitado) |
+| `auto_marca` | Marcas de automóviles normalizadas | `0` | Activo (RLS Habilitado) |
+| `auto_modelo` | Modelos de automóviles normalizados | `0` | Activo (RLS Habilitado) |
+| `auto_version` | Versiones y motorizaciones de automóviles | `0` | Activo (RLS Habilitado) |
+| `articulo_compatibilidad` | Compatibilidades M-N entre artículos y vehículos | `0` | Activo (RLS Habilitado) |
+| `alicuota_iva` | Alícuotas de IVA granulares de ARCA (ex-AFIP) | `0` | Activo (RLS Habilitado) |
+| `afip_vouchers` | Comprobantes electrónicos (CAE/Facturas/Remitos) | `0` | Activo (RLS Habilitado) |
+| `caja_sesion` | Sesiones de caja diaria por cajero y CUIT | `0` | Activo (RLS Habilitado) |
+| `caja_movimiento` | Movimientos de ingreso/egreso de caja diaria | `0` | Activo (RLS Habilitado) |
+| `customer_credit_accounts` | Cuentas corrientes de clientes mayoristas | `0` | Activo (RLS Habilitado) |
+| `customer_credit_movements` | Movimientos de débito/crédito de cuenta corriente | `0` | Activo (RLS Habilitado) |
+| `accounting_accounts` | Plan de cuentas jerárquico contable | `0` | Activo (RLS Habilitado) |
+| `accounting_transactions` | Asientos contables - Cabecera | `0` | Activo (RLS Habilitado) |
+| `accounting_entries` | Asientos contables - Líneas de Debe y Haber | `0` | Activo (RLS Habilitado) |
+| `arca_credentials` | Credenciales fiscales y certificados de ARCA | `0` | Activo (RLS Habilitado) |
 
 ## 🛠️ Esquemas de Base de Datos y Tipos
 
 ### 📋 Tabla: `users`
-
-**Campos y estructura detectados (ejemplo):**
-
 ```json
 {
-  "id": "00000000-0000-0000-0000-000000000001",
-  "email": "admin@example.com",
-  "profile": {
-    "name": "Administrator"
-  },
-  "metadata": {},
-  "created_at": "2026-05-18T01:31:05.18207+00:00",
-  "updated_at": "2026-05-18T01:31:05.18207+00:00"
+  "id": "text (UUID de Auth, PK)",
+  "email": "text (unique)",
+  "profile": "jsonb",
+  "metadata": "jsonb",
+  "created_at": "timestamp",
+  "updated_at": "timestamp"
 }
 ```
 
 ### 📋 Tabla: `company_profile`
-
-**Campos y estructura detectados (ejemplo):**
-
 ```json
 {
-  "cuit": "30717762210",
-  "razon_social": "Prueba 1",
-  "nombre_fantasia": "Retazo",
-  "condicion_iva": "Responsable Inscripto",
-  "ingresos_brutos": null,
-  "inicio_actividades": null,
-  "direccion": "Calle F 332",
-  "punto_venta": 1,
-  "afip_mode": "edge_simulation",
-  "afip_cert": null,
-  "afip_key": null
+  "cuit": "text (PK)",
+  "razon_social": "text",
+  "nombre_fantasia": "text",
+  "condicion_iva": "text",
+  "ingresos_brutos": "text",
+  "inicio_actividades": "text",
+  "direccion": "text",
+  "punto_venta": "integer",
+  "afip_mode": "text",
+  "celular": "text",
+  "email": "text"
 }
 ```
 
-### 📋 Tabla: `customers`
-*Tabla vacía. Aún no hay registros cargados para inferir estructura.*
+### 📋 Tabla: `articulo`
+```json
+{
+  "id": "uuid (PK)",
+  "codigo_fabricante": "varchar",
+  "codigo_barras": "varchar",
+  "descripcion": "text",
+  "marca_id": "uuid (FK)",
+  "familia_id": "uuid (FK)",
+  "grupo_equivalencia_id": "uuid (FK)",
+  "precio_costo": "numeric",
+  "precio_minorista": "numeric",
+  "precio_mayorista": "numeric",
+  "stock_actual": "integer",
+  "stock_minimo": "integer",
+  "ubicacion_deposito": "varchar",
+  "created_at": "timestamp"
+}
+```
 
-### 📋 Tabla: `inventory`
-*Tabla vacía. Aún no hay registros cargados para inferir estructura.*
+### 📋 Tabla: `alicuota_iva`
+```json
+{
+  "codigo_afip": "integer (PK)",
+  "descripcion": "varchar",
+  "porcentaje": "numeric (unique)",
+  "activa": "boolean",
+  "created_at": "timestamp"
+}
+```
 
 ### 📋 Tabla: `afip_vouchers`
-*Tabla vacía. Aún no hay registros cargados para inferir estructura.*
+```json
+{
+  "id": "text (PK)",
+  "company_cuit": "text",
+  "type": "text",
+  "client_cuit": "text",
+  "client_name": "text",
+  "net_amount": "numeric",
+  "iva_amount": "numeric",
+  "total_amount": "numeric",
+  "cae": "text",
+  "cae_expiration": "text",
+  "qr_link": "text",
+  "items": "jsonb (inmutable)",
+  "created_at": "timestamp"
+}
+```
 
 ### 📋 Tabla: `accounting_accounts`
-*Tabla vacía. Aún no hay registros cargados para inferir estructura.*
+```json
+{
+  "code": "text (PK)",
+  "name": "text",
+  "parent_code": "text",
+  "type": "text"
+}
+```
 
 ### 📋 Tabla: `accounting_transactions`
-*Tabla vacía. Aún no hay registros cargados para inferir estructura.*
+```json
+{
+  "id": "text (PK)",
+  "date": "timestamp",
+  "description": "text"
+}
+```
 
 ### 📋 Tabla: `accounting_entries`
-*Tabla vacía. Aún no hay registros cargados para inferir estructura.*
-
-### 📋 Tabla: `customer_credit_accounts`
-*Tabla vacía. Aún no hay registros cargados para inferir estructura.*
-
-### 📋 Tabla: `customer_credit_movements`
-*Tabla vacía. Aún no hay registros cargados para inferir estructura.*
-
-### 📋 Tabla: `arca_credentials`
-*Tabla vacía. Aún no hay registros cargados para inferir estructura.*
+```json
+{
+  "id": "integer (PK, serial)",
+  "transaction_id": "text (FK)",
+  "account_code": "text (FK)",
+  "debe": "numeric",
+  "haber": "numeric"
+}
+```

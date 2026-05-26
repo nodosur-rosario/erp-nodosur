@@ -1,8 +1,8 @@
 import { cookies } from "next/headers";
 
-const ACCESS_COOKIE = "insforge_access_token";
-const REFRESH_COOKIE = "insforge_refresh_token";
-const PKCE_VERIFIER_COOKIE = "insforge_pkce_verifier";
+const ACCESS_COOKIE = "supabase_access_token";
+const REFRESH_COOKIE = "supabase_refresh_token";
+const PKCE_VERIFIER_COOKIE = "supabase_pkce_verifier";
 
 const cookieOptions = {
   httpOnly: true,
@@ -15,12 +15,19 @@ export async function setAuthCookies(accessToken: string, refreshToken: string) 
   const store = await cookies();
   store.set(ACCESS_COOKIE, accessToken, { ...cookieOptions, maxAge: 60 * 15 });
   store.set(REFRESH_COOKIE, refreshToken, { ...cookieOptions, maxAge: 60 * 60 * 24 * 7 });
+  // Set client-accessible token for client-side Supabase client RLS compliance
+  store.set("supabase_access_token_client", accessToken, {
+    ...cookieOptions,
+    httpOnly: false,
+    maxAge: 60 * 15,
+  });
 }
 
 export async function clearAuthCookies() {
   const store = await cookies();
   store.delete(ACCESS_COOKIE);
   store.delete(REFRESH_COOKIE);
+  store.delete("supabase_access_token_client");
 }
 
 export async function getAccessToken() {

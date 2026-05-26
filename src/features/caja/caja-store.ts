@@ -22,6 +22,7 @@ export interface CajaMovimiento {
   concepto: string;
   fecha: string;
   accounting_transaction_id: string | null;
+  canal?: string;
 }
 
 interface CajaState {

@@ -58,3 +58,56 @@ Es la tabla core del inventario de repuestos.
 - **Timing**: `BEFORE INSERT OR UPDATE`
 - **Función**: `fn_sincronizar_busqueda_articulo_before()`
 - **Objetivo**: Actualiza automáticamente el vector `tsv_busqueda` antes de guardar o modificar el artículo concatenando código, descripción y marcas.
+
+---
+
+## 4. Esquema de Contabilidad, Caja y Alícuotas de IVA (ARCA)
+
+### Tabla: `alicuota_iva`
+Define las tasas de IVA oficiales del ERP Nodo Sur de forma granular.
+
+| Campo | Tipo de Datos | Nullable | Valor por Defecto | Descripción |
+|---|---|---|---|---|
+| `codigo_afip` | `integer` | NO | - | Código oficial de alícuota ante AFIP/ARCA (PK). |
+| `descripcion` | `character varying` | NO | - | Detalle visual (ej. 'IVA 21%'). |
+| `porcentaje` | `numeric` | NO | - | Porcentaje impositivo exacto (unique). |
+| `activa` | `boolean` | NO | `true` | Habilita o deshabilita la tasa en el POS. |
+| `created_at` | `timestamp` | NO | `now()` | Fecha de creación del registro. |
+
+### Tabla: `accounting_accounts`
+Plan de cuentas jerárquico contable de partida doble.
+
+| Campo | Tipo de Datos | Nullable | Valor por Defecto | Descripción |
+|---|---|---|---|---|
+| `code` | `text` | NO | - | Código contable jerárquico (PK, ej. '1.1.1.01'). |
+| `name` | `text` | NO | - | Nombre descriptivo de la cuenta. |
+| `parent_code` | `text` | YES | - | Relación recursiva de jerarquía (FK). |
+| `type` | `text` | NO | - | Categoría contable: `asset`, `liability`, `equity`, `revenue`, `expense`. |
+
+### Tabla: `accounting_transactions`
+Cabeceras de asientos contables del Libro Diario.
+
+| Campo | Tipo de Datos | Nullable | Valor por Defecto | Descripción |
+|---|---|---|---|---|
+| `id` | `text` | NO | - | ID secuencial de transacción contable (PK). |
+| `date` | `timestamp` | NO | - | Fecha de registro del asiento contable. |
+| `description` | `text` | NO | - | Detalle descriptivo de la transacción. |
+
+### Tabla: `accounting_entries`
+Detalles de partidas y contrapartidas individuales (Debe y Haber).
+
+| Campo | Tipo de Datos | Nullable | Valor por Defecto | Descripción |
+|---|---|---|---|---|
+| `id` | `integer` | NO | `nextval(...)` | Identificador autoincremental de la línea (PK). |
+| `transaction_id` | `text` | NO | - | Relación con la cabecera `accounting_transactions` (FK). |
+| `account_code` | `text` | NO | - | Relación con `accounting_accounts` (FK). |
+| `debe` | `numeric` | NO | `0.00` | Monto a debitar en la cuenta. |
+| `haber` | `numeric` | NO | `0.00` | Monto a acreditar en la cuenta. |
+
+---
+
+## 5. Integridad de Partida Doble
+Para asegurar la consistencia del Libro Diario, toda transacción insertada en `accounting_entries` debe cumplir rigurosamente:
+$$\sum \text{debe} = \sum \text{haber}$$
+Cualquier intento de inserción que rompa esta igualdad será rechazado de forma atómica en las reglas de negocio del ERP y disparará un rollback.
+

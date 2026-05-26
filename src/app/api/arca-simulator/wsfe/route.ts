@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     }
 
     const { data: vouchers, error: dbErr } = await client.database
-      .from("afip_vouchers")
+      .from("arca_vouchers")
       .select("id")
       .eq("company_cuit", cuit)
       .eq("type", typeStr)

@@ -18,15 +18,16 @@ interface SalesState {
   clientName: string;
   clientCuit: string;
   clientIvaCondition: string; // "Responsable Inscripto" | "Consumidor Final" | "Monotributista"
-  voucherType: "Factura A" | "Factura B" | "Factura C";
+  voucherType: "Factura A" | "Factura B" | "Factura C" | "Ticket Interno B";
   paymentMethod: PaymentMethod;
   isSubmitting: boolean;
   
   addItem: (item: { id: string; codigo_fabricante: string; descripcion: string; precio_minorista: number; precio_mayorista: number; familia_id?: string }, precioTipo?: "minorista" | "mayorista") => void;
   removeItem: (itemId: string) => void;
   updateQuantity: (itemId: string, quantity: number) => void;
+  updateAlicuota: (itemId: string, alicuota: number) => void;
   setClient: (cuit: string, name: string, condition: string) => void;
-  setVoucherType: (type: "Factura A" | "Factura B" | "Factura C") => void;
+  setVoucherType: (type: "Factura A" | "Factura B" | "Factura C" | "Ticket Interno B") => void;
   setPaymentMethod: (method: PaymentMethod) => void;
   clearSales: () => void;
   fetchCustomers: () => Promise<void>;
@@ -89,15 +90,21 @@ export const useSalesStore = create<SalesState>((set, get) => ({
       ),
     })),
 
+  updateAlicuota: (itemId, alicuota) =>
+    set((state) => ({
+      cart: state.cart.map((i) =>
+        i.id === itemId ? { ...i, alicuota_iva: alicuota } : i
+      ),
+    })),
+
   setClient: (cuit, name, condition) =>
     set((state) => {
-      // Auto-selección lógica de tipo de comprobante basada en la condición tributaria
-      let voucherType: "Factura A" | "Factura B" | "Factura C" = "Factura B";
-      if (condition === "Responsable Inscripto") {
-        voucherType = "Factura A";
-      } else if (condition === "Monotributista") {
-        // En Argentina los monotributistas emiten y reciben Factura B o C
-        voucherType = "Factura B";
+      // Auto-selección lógica de tipo de comprobante basada en la condición tributaria frente al IVA (RG 5003/2021)
+      let voucherType: "Factura A" | "Factura B" | "Factura C" | "Ticket Interno B" = "Factura B";
+      if (condition === "Responsable Inscripto" || condition === "Monotributista") {
+        voucherType = "Factura A"; // Los monotributistas reciben Factura A desde julio 2021
+      } else {
+        voucherType = "Factura B"; // Consumidor Final y Exento reciben Factura B
       }
       
       return {

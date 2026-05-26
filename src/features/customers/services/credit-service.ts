@@ -211,6 +211,7 @@ export async function recordPayment(
           id: txId,
           date: new Date().toISOString(),
           description: decripAsiento,
+          company_cuit: companyCuit,
         },
       ]);
 

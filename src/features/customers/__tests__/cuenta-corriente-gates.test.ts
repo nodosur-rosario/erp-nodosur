@@ -197,7 +197,7 @@ describe("Cuenta Corriente & POS Gates Business Logic Tests", () => {
 
       expect(ledgerEntriesInsert).toBeDefined();
       if (ledgerEntriesInsert) {
-        const entries = ledgerEntriesInsert[0];
+        const entries = ledgerEntriesInsert[0] as any[];
         
         // Assert balance: Debe (Debit Account) == Haber (Credit Account)
         const debeSum = entries.reduce((acc: number, entry: any) => acc + entry.debe, 0);
@@ -257,12 +257,12 @@ describe("Cuenta Corriente & POS Gates Business Logic Tests", () => {
 
       // Verify customer account update and daily cash session update
       const sessionUpdateCall = updateSpy.mock.calls.find(call => 
-        call[0].hasOwnProperty("monto_teorico")
+        (call[0] as any).hasOwnProperty("monto_teorico")
       );
 
       expect(sessionUpdateCall).toBeDefined();
       if (sessionUpdateCall) {
-        expect(sessionUpdateCall[0].monto_teorico).toBe(23000.0); // 20000 theoretical + 3000 cash paid!
+        expect((sessionUpdateCall[0] as any).monto_teorico).toBe(23000.0); // 20000 theoretical + 3000 cash paid!
       }
     });
   });

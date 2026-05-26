@@ -9,16 +9,19 @@
     "lint": "next lint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "autoskills": "node scripts/autoskills.js"
+    "autoskills": "node scripts/autoskills.js",
+    "update-context": "node scripts/update-context.js"
   },
   "dependencies": {
     "@insforge/sdk": "^1.2.2",
     "@supabase/supabase-js": "^2.49.1",
+    "cockatiel": "^3.2.1",
     "lucide-react": "^1.16.0",
     "next": "^15.5.7",
     "node-forge": "^1.4.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
+    "soap": "^1.9.3",
     "sonner": "^2.0.7",
     "xlsx": "^0.18.5",
     "zustand": "^5.0.13"

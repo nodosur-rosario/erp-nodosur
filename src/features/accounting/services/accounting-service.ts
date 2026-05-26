@@ -1,12 +1,13 @@
 "use server";
 
 import { getSupabaseClient } from "@/core/api/supabase";
+import { getActiveCuitCookie } from "@/core/company/company-cookies";
 
 export interface AccountingAccount {
   code: string;
   name: string;
   parent_code: string | null;
-  type: "asset" | "liability" | "equity" | "revenue" | "expense";
+  type: "activo" | "pasivo" | "patrimonio_neto" | "ingreso" | "egreso";
 }
 
 export interface AccountingEntry {
@@ -24,6 +25,7 @@ export interface AccountingTransaction {
   id: string;
   date: string;
   description: string;
+  canal?: string;
   accounting_entries?: AccountingEntry[];
 }
 
@@ -35,11 +37,17 @@ export async function getAccountingAccounts(): Promise<{
   error: string | null;
 }> {
   try {
+    const cuit = await getActiveCuitCookie();
     const client = getSupabaseClient();
-    const { data, error } = await client.database
-      .from("accounting_accounts")
-      .select("*")
-      .order("code", { ascending: true });
+    let dbQuery = client.database.from("accounting_accounts").select("*");
+    
+    if (cuit) {
+      dbQuery = dbQuery.or(`company_cuit.eq.${cuit},company_cuit.is.null`);
+    } else {
+      dbQuery = dbQuery.is("company_cuit", null);
+    }
+
+    const { data, error } = await dbQuery.order("code", { ascending: true });
 
     if (error) throw error;
 
@@ -53,20 +61,27 @@ export async function getAccountingAccounts(): Promise<{
 /**
  * Fetch all bookkeeping transactions unified with their ledger entries.
  */
-export async function getAccountingTransactions(): Promise<{
+export async function getAccountingTransactions(
+  startDateISO?: string,
+  endDateISO?: string
+): Promise<{
   data: AccountingTransaction[];
   error: string | null;
 }> {
   try {
+    const cuit = await getActiveCuitCookie();
+    if (!cuit) return { data: [], error: "No hay CUIT activo." };
+
     const client = getSupabaseClient();
     
     // Joint query using Postgrest sub-select syntax to fetch the entries and join with account name.
-    const { data, error } = await client.database
+    let dbQuery = client.database
       .from("accounting_transactions")
       .select(`
         id,
         date,
         description,
+        canal,
         accounting_entries (
           id,
           transaction_id,
@@ -78,7 +93,16 @@ export async function getAccountingTransactions(): Promise<{
           )
         )
       `)
-      .order("date", { ascending: false });
+      .eq("company_cuit", cuit);
+
+    if (startDateISO) {
+      dbQuery = dbQuery.gte("date", startDateISO);
+    }
+    if (endDateISO) {
+      dbQuery = dbQuery.lte("date", endDateISO);
+    }
+
+    const { data, error } = await dbQuery.order("date", { ascending: false });
 
     if (error) throw error;
 
@@ -95,10 +119,17 @@ export async function getAccountingTransactions(): Promise<{
 export async function createManualTransaction(
   description: string,
   date: string,
-  entries: { account_code: string; debe: number; haber: number }[]
+  entries: { account_code: string; debe: number; haber: number }[],
+  companyCuit?: string,
+  canal?: "oficial" | "interno"
 ): Promise<{ success: boolean; error: string | null }> {
   try {
     const client = getSupabaseClient();
+    const cuit = companyCuit || await getActiveCuitCookie();
+
+    if (!cuit) {
+      return { success: false, error: "No hay CUIT activo para registrar el asiento." };
+    }
 
     if (!description.trim()) {
       return { success: false, error: "La descripción del asiento es obligatoria." };
@@ -135,6 +166,8 @@ export async function createManualTransaction(
           id: txId,
           date: date ? new Date(date).toISOString() : new Date().toISOString(),
           description: description.trim(),
+          company_cuit: cuit,
+          canal: canal || "oficial",
         },
       ]);
 

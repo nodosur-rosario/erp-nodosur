@@ -11,6 +11,7 @@ type AuthViewer = {
   email: string | null;
   name: string | null;
   avatarUrl: string | null;
+  role: string | null;
 };
 
 const VISITOR_VIEWER: AuthViewer = {
@@ -19,6 +20,7 @@ const VISITOR_VIEWER: AuthViewer = {
   email: null,
   name: null,
   avatarUrl: null,
+  role: null,
 };
 
 export type { AuthViewer };
@@ -34,6 +36,7 @@ function mapUserToViewer(user: UserSchema | null | undefined): AuthViewer {
     email: user.email,
     name: user.profile?.name?.trim() || null,
     avatarUrl: user.profile?.avatar_url?.trim() || null,
+    role: (user as any).role || (user.profile as any)?.role || "pending",
   };
 }
 

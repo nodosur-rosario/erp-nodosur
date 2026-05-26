@@ -15,11 +15,18 @@ import {
   ArrowRight,
   TrendingUp,
   Download,
-  AlertCircle
+  AlertCircle,
+  Upload,
+  CheckCircle2
 } from "lucide-react";
 import { getSupabaseClient } from "@/core/api/supabase";
 import { useCompanyStore } from "@/core/company/company-store";
 import { toast } from "sonner";
+import { useSecretStore } from "@/features/sales/store/use-secret-store";
+import { useDateRangeStore } from "@/core/store/date-range-store";
+import { arDateToUTCBounds } from "@/core/utils/timezone-utils";
+import { generateLibroIvaVentas, reconcileAfip } from "@/features/arca/actions";
+import type { ReconciliationComparisonRow } from "@/features/arca/actions";
 
 interface VoucherItem {
   codigo: string;
@@ -40,14 +47,17 @@ interface Voucher {
   iva_amount: string | number;
   total_amount: string | number;
   cae: string;
-  cae_expiration: string;
+  cae_vto: string;
   qr_link: string;
   items: VoucherItem[] | string | null;
   created_at: string;
+  canal?: string;
 }
 
 export default function FacturasPage() {
   const activeCompany = useCompanyStore((state) => state.currentCompany);
+  const showCajaNegra = useSecretStore((state) => state.showCajaNegra);
+  const { startDate, endDate } = useDateRangeStore();
   const [vouchers, setVouchers] = useState<Voucher[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -55,17 +65,114 @@ export default function FacturasPage() {
   const [selectedVoucher, setSelectedVoucher] = useState<Voucher | null>(null);
   const [hoveredVoucherId, setHoveredVoucherId] = useState<string | null>(null);
 
+  const [activeTab, setActiveTab] = useState<"history" | "reconciliation">("history");
+  
+  // Libro IVA states
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [generatingIva, setGeneratingIva] = useState(false);
+
+  // Reconciliation states
+  const [reconciliationList, setReconciliationList] = useState<ReconciliationComparisonRow[]>([]);
+  const [isReconciling, setIsReconciling] = useState(false);
+  const [reconciledSummary, setReconciledSummary] = useState<{
+    matched: number;
+    mismatch: number;
+    missingErp: number;
+    missingAfip: number;
+  } | null>(null);
+
+  const handleExportLibroIva = async () => {
+    setGeneratingIva(true);
+    try {
+      const res = await generateLibroIvaVentas(selectedMonth, selectedYear);
+      if (res.error) {
+        toast.error(res.error);
+      } else if (res.csv) {
+        const blob = new Blob([res.csv], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `libro_iva_ventas_${selectedMonth.toString().padStart(2, "0")}_${selectedYear}.csv`);
+        link.style.visibility = "hidden";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success("Libro IVA Ventas generado e importado exitosamente.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Error al exportar el Libro IVA.");
+    } finally {
+      setGeneratingIva(false);
+    }
+  };
+
+  const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsReconciling(true);
+    toast.info("Leyendo archivo CSV e iniciando cruces de datos contables...");
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const text = event.target?.result as string;
+        const res = await reconcileAfip(text);
+        
+        if (res.error) {
+          toast.error(res.error);
+        } else if (res.data) {
+          setReconciliationList(res.data);
+          
+          const summary = res.data.reduce(
+            (acc, row) => {
+              if (row.status === "matched") acc.matched++;
+              else if (row.status === "mismatch_amount") acc.mismatch++;
+              else if (row.status === "missing_erp") acc.missingErp++;
+              else if (row.status === "missing_afip") acc.missingAfip++;
+              return acc;
+            },
+            { matched: 0, mismatch: 0, missingErp: 0, missingAfip: 0 }
+          );
+          
+          setReconciledSummary(summary);
+          toast.success(`Conciliación finalizada. ${summary.matched} conciliados correctamente.`);
+        }
+      } catch (err) {
+        console.error(err);
+        toast.error("Error al conciliar los comprobantes del archivo CSV.");
+      } finally {
+        setIsReconciling(false);
+      }
+    };
+    reader.readAsText(file, "UTF-8");
+  };
+
   // Load vouchers from database
   const fetchVouchers = async () => {
     if (!activeCompany) return;
     setLoading(true);
     try {
       const client = getSupabaseClient();
-      const { data, error } = await client.database
-        .from("afip_vouchers")
+      
+      // Calculate Argentina GMT-3 timezone bounds normalized to UTC
+      const { startISO } = arDateToUTCBounds(startDate);
+      const { endISO } = arDateToUTCBounds(endDate);
+
+      let query = client.database
+        .from("arca_vouchers")
         .select("*")
         .eq("company_cuit", activeCompany.cuit)
-        .order("created_at", { ascending: false });
+        .gte("created_at", startISO)
+        .lte("created_at", endISO);
+
+      if (!showCajaNegra) {
+        query = query.eq("canal", "oficial");
+      }
+
+      const { data, error } = await query.order("created_at", { ascending: false });
 
       if (error) throw error;
       setVouchers((data as Voucher[]) || []);
@@ -79,7 +186,7 @@ export default function FacturasPage() {
 
   useEffect(() => {
     fetchVouchers();
-  }, [activeCompany]);
+  }, [activeCompany, showCajaNegra, startDate, endDate]);
 
   // Filters and search logic
   const filteredVouchers = vouchers.filter((v) => {
@@ -139,8 +246,34 @@ export default function FacturasPage() {
         </button>
       </div>
 
-      {/* 2. Stats Section */}
-      <div className="grid gap-6 sm:grid-cols-3">
+      {/* Tab Switcher */}
+      <div className="flex border-b border-zinc-800 pb-px gap-2">
+        <button
+          onClick={() => setActiveTab("history")}
+          className={`px-5 py-3 text-sm font-bold border-b-2 transition-all ${
+            activeTab === "history"
+              ? "border-amber-400 text-amber-400 font-extrabold"
+              : "border-transparent text-zinc-400 hover:text-white"
+          }`}
+        >
+          Historial de Comprobantes
+        </button>
+        <button
+          onClick={() => setActiveTab("reconciliation")}
+          className={`px-5 py-3 text-sm font-bold border-b-2 transition-all ${
+            activeTab === "reconciliation"
+              ? "border-amber-400 text-amber-400 font-extrabold"
+              : "border-transparent text-zinc-400 hover:text-white"
+          }`}
+        >
+          Conciliación e Impuestos (ARCA)
+        </button>
+      </div>
+
+      {activeTab === "history" ? (
+        <>
+          {/* 2. Stats Section */}
+          <div className="grid gap-6 sm:grid-cols-3">
         <div className="p-5 rounded-2xl border border-zinc-800 bg-zinc-900/20 backdrop-blur-md relative overflow-hidden group">
           <div className="absolute -inset-px bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           <div className="flex items-center justify-between pb-2 border-b border-zinc-800/60 mb-3">
@@ -345,13 +478,19 @@ export default function FacturasPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold ${
-                        v.type.includes("Factura A") 
-                          ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                          : "bg-blue-500/10 text-blue-400 border border-blue-500/20"
-                      }`}>
-                        {v.type}
-                      </span>
+                      {v.canal === "interno" ? (
+                        <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                          {v.type}
+                        </span>
+                      ) : (
+                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold ${
+                          v.type.includes("Factura A") 
+                            ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                            : "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+                        }`}>
+                          {v.type}
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4 max-w-[200px] truncate">
                       <p className="font-semibold text-white">{v.client_name}</p>
@@ -395,6 +534,183 @@ export default function FacturasPage() {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+    </>
+  ) : (
+        <div className="space-y-8 animate-fade-in">
+          <div className="grid gap-6 md:grid-cols-2">
+            
+            {/* Card A: Libro IVA Ventas Export */}
+            <div className="p-6 rounded-2xl border border-zinc-800 bg-zinc-900/10 backdrop-blur-md space-y-4">
+              <div>
+                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-amber-400" />
+                  <span>Libro IVA Ventas Digital</span>
+                </h2>
+                <p className="text-xs text-zinc-500 mt-1">
+                  Exportar la planilla fiscal mensual del período seleccionado lista para conciliar o subir al portal de ARCA.
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-1.5">Mes Fiscal</label>
+                  <select
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                    className="w-full rounded-xl border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-amber-500/50"
+                  >
+                    {Array.from({ length: 12 }, (_, idx) => (
+                      <option key={idx + 1} value={idx + 1}>
+                        {new Date(2026, idx, 1).toLocaleString("es-AR", { month: "long" }).toUpperCase()}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-1.5">Año Fiscal</label>
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(Number(e.target.value))}
+                    className="w-full rounded-xl border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-amber-500/50"
+                  >
+                    <option value={2026}>2026</option>
+                    <option value={2025}>2025</option>
+                  </select>
+                </div>
+              </div>
+
+              <button
+                onClick={handleExportLibroIva}
+                disabled={generatingIva}
+                className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-xs font-bold text-black flex items-center justify-center gap-1.5 transition-all"
+              >
+                {generatingIva ? (
+                  <span className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                <span>Generar Libro IVA Ventas CSV</span>
+              </button>
+            </div>
+
+            {/* Card B: AFIP Mis Comprobantes Reconciliation */}
+            <div className="p-6 rounded-2xl border border-zinc-800 bg-zinc-900/10 backdrop-blur-md space-y-4">
+              <div>
+                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                  <span>Auditoría de Comprobantes AFIP</span>
+                </h2>
+                <p className="text-xs text-zinc-500 mt-1">
+                  Subir el archivo CSV oficial de &quot;Mis Comprobantes Emitidos&quot; de ARCA para auditar discrepancias con el ERP.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-center w-full">
+                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-zinc-800 hover:border-amber-500/40 rounded-2xl bg-zinc-950/40 cursor-pointer transition-all">
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <Upload className="w-8 h-8 text-zinc-500 mb-2" />
+                    <p className="text-xs text-zinc-400 font-bold">Seleccionar archivo CSV de AFIP</p>
+                    <p className="text-[10px] text-zinc-600 mt-1">Arrastrar o hacer click</p>
+                  </div>
+                  <input 
+                    type="file" 
+                    accept=".csv" 
+                    onChange={handleCsvUpload} 
+                    disabled={isReconciling} 
+                    className="hidden" 
+                  />
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* 3. Reconciliation Summary Widgets */}
+          {reconciledSummary && (
+            <div className="grid gap-4 sm:grid-cols-4 animate-fade-in">
+              <div className="p-4 rounded-xl border border-zinc-800 bg-emerald-500/5 text-center">
+                <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-500">Conciliados (Ok)</p>
+                <p className="text-2xl font-black text-emerald-400 mt-1">{reconciledSummary.matched}</p>
+              </div>
+              <div className="p-4 rounded-xl border border-zinc-800 bg-amber-500/5 text-center">
+                <p className="text-[9px] font-bold uppercase tracking-widest text-amber-500">Monto discrepante</p>
+                <p className="text-2xl font-black text-amber-400 mt-1">{reconciledSummary.mismatch}</p>
+              </div>
+              <div className="p-4 rounded-xl border border-zinc-800 bg-red-500/5 text-center">
+                <p className="text-[9px] font-bold uppercase tracking-widest text-red-500">Faltante en ERP</p>
+                <p className="text-2xl font-black text-red-400 mt-1">{reconciledSummary.missingErp}</p>
+              </div>
+              <div className="p-4 rounded-xl border border-zinc-800 bg-blue-500/5 text-center">
+                <p className="text-[9px] font-bold uppercase tracking-widest text-blue-500">Faltante en AFIP</p>
+                <p className="text-2xl font-black text-blue-400 mt-1">{reconciledSummary.missingAfip}</p>
+              </div>
+            </div>
+          )}
+
+          {/* 4. Reconciliation Details Table */}
+          {reconciliationList.length > 0 && (
+            <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/10 overflow-hidden backdrop-blur-xl animate-fade-in">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-zinc-850 bg-zinc-900/40 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                      <th className="px-6 py-4">Fecha</th>
+                      <th className="px-6 py-4">Comprobante / CAE</th>
+                      <th className="px-6 py-4">Cliente</th>
+                      <th className="px-6 py-4 text-right">Monto ERP ($)</th>
+                      <th className="px-6 py-4 text-right">Monto AFIP ($)</th>
+                      <th className="px-6 py-4 text-center">Estado Auditoría</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-850/60 text-xs text-zinc-300">
+                    {reconciliationList.map((row, idx) => (
+                      <tr key={idx} className="hover:bg-zinc-800/20 transition-colors">
+                        <td className="px-6 py-4 font-mono text-zinc-450">{row.date}</td>
+                        <td className="px-6 py-4 font-mono font-bold text-white">
+                          <div>{row.id}</div>
+                          <div className="text-[10px] text-zinc-500 font-normal">CAE: {row.cae}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <p className="font-semibold text-white">{row.client_name}</p>
+                          <p className="text-[10px] text-zinc-500 font-mono">CUIT: {row.client_cuit}</p>
+                        </td>
+                        <td className="px-6 py-4 text-right font-mono font-bold">
+                          {row.erp_amount > 0 ? `$${row.erp_amount.toFixed(2)}` : "—"}
+                        </td>
+                        <td className="px-6 py-4 text-right font-mono font-bold">
+                          {row.afip_amount > 0 ? `$${row.afip_amount.toFixed(2)}` : "—"}
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          {row.status === "matched" && (
+                            <span className="inline-flex items-center rounded-md px-2.5 py-1 text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                              Conciliado (Ok)
+                            </span>
+                          )}
+                          {row.status === "mismatch_amount" && (
+                            <span className="inline-flex items-center rounded-md px-2.5 py-1 text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                              Importe discrepante
+                            </span>
+                          )}
+                          {row.status === "missing_erp" && (
+                            <span className="inline-flex items-center rounded-md px-2.5 py-1 text-[10px] font-bold bg-red-500/10 text-red-450 border border-red-500/20">
+                              Falta en ERP
+                            </span>
+                          )}
+                          {row.status === "missing_afip" && (
+                            <span className="inline-flex items-center rounded-md px-2.5 py-1 text-[10px] font-bold bg-blue-500/10 text-blue-450 border border-blue-500/20">
+                              Falta en AFIP
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -562,13 +878,25 @@ export default function FacturasPage() {
                   </div>
                 </div>
 
+                {/* QR Code (RG 4892) */}
+                {selectedVoucher.qr_link && selectedVoucher.qr_link !== "—" && (
+                  <div className="flex flex-col items-center gap-1 bg-white p-1.5 rounded border border-zinc-300 shrink-0">
+                    <img 
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(selectedVoucher.qr_link)}`} 
+                      alt="Código QR Oficial AFIP"
+                      className="w-16 h-16 object-contain"
+                    />
+                    <span className="text-[6px] font-black text-black uppercase tracking-wider font-mono">Comprobante Autorizado</span>
+                  </div>
+                )}
+
                 {/* CAE and CAE Expiration */}
                 <div className="text-center md:text-right space-y-1">
                   <p className="text-xs text-white font-bold font-mono">
                     CAE Nº: <span className="bg-zinc-800/80 px-2 py-0.5 rounded text-amber-300 font-black tracking-widest">{selectedVoucher.cae}</span>
                   </p>
                   <p className="text-[10px] text-zinc-500 font-mono">
-                    Fecha de Vto. CAE: {selectedVoucher.cae_expiration}
+                    Fecha de Vto. CAE: {selectedVoucher.cae_vto}
                   </p>
                 </div>
               </div>

@@ -1,17 +1,41 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getSupabaseServerClient } from "@/core/api/supabase";
+import { getSupabaseServerClient, createSupabaseServerClient } from "@/core/api/supabase";
 import { setActiveCuitCookie, clearActiveCuitCookie } from "@/core/company/company-cookies";
 import type { CompanyProfile } from "@/core/company/company-store";
 import { encryptPrivateKey } from "@/features/arca/services/arca-crypto";
+import { getCurrentUserDetails } from "@/core/auth/auth-state";
+import { getAccessToken } from "@/core/auth/auth-cookies";
 
 export async function fetchCompaniesAction(): Promise<{ success: true; data: CompanyProfile[] } | { success: false; error: string }> {
   try {
     const supabase = getSupabaseServerClient();
+    const user = await getCurrentUserDetails();
+    if (!user) {
+      return { success: true, data: [] };
+    }
+
+    // Fetch user's company roles to determine which tenants they have access to
+    const { data: roles, error: rolesErr } = await supabase.database
+      .from("user_company_roles")
+      .select("company_cuit")
+      .eq("user_id", user.id);
+
+    if (rolesErr) {
+      return { success: false, error: rolesErr.message ?? "Error al verificar roles de la empresa." };
+    }
+
+    if (!roles || roles.length === 0) {
+      return { success: true, data: [] };
+    }
+
+    const cuits = roles.map((r: any) => r.company_cuit);
+
     const { data, error } = await supabase.database
       .from("company_profile")
-      .select("*");
+      .select("*")
+      .in("cuit", cuits);
 
     if (error) {
       return { success: false, error: error.message ?? "Error al cargar las empresas." };
@@ -43,7 +67,17 @@ export async function clearCompanyAction(): Promise<{ success: true } | { succes
 
 export async function createCompanyAction(company: CompanyProfile): Promise<{ success: true; data: CompanyProfile } | { success: false; error: string }> {
   try {
-    const supabase = getSupabaseServerClient();
+    const user = await getCurrentUserDetails();
+    if (!user) {
+      return { success: false, error: "Usuario no autenticado." };
+    }
+
+    // Instanciar cliente autenticado explícitamente pasando el token para evitar pérdida de contexto/cookies de Next.js en Server Actions asíncronas
+    const accessToken = await getAccessToken();
+    const supabase = accessToken
+      ? createSupabaseServerClient({ accessToken })
+      : getSupabaseServerClient();
+
     const { data, error } = await supabase.database
       .from("company_profile")
       .insert([
@@ -65,6 +99,22 @@ export async function createCompanyAction(company: CompanyProfile): Promise<{ su
 
     if (error) {
       return { success: false, error: error.message ?? "Error al crear la empresa." };
+    }
+
+    // Link the user with the newly created company as 'owner'
+    const { error: roleErr } = await supabase.database
+      .from("user_company_roles")
+      .insert([
+        {
+          user_id: user.id,
+          company_cuit: company.cuit,
+          role: "owner"
+        }
+      ]);
+
+    if (roleErr) {
+      console.error("Error creating user_company_role:", roleErr);
+      return { success: false, error: roleErr.message ?? "Empresa creada pero falló la asignación del rol de propietario." };
     }
 
     const createdCompany = (data && data[0]) as CompanyProfile;

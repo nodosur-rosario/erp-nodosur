@@ -1,6 +1,6 @@
 # Desarrollo Guiado por Especificaciones (SDD) - Reporte de Inicialización del Proyecto
 
-Este reporte confirma la calibración exitosa y el chequeo de salud del entorno monorepo **Beast-Driven-Development**.
+Este reporte confirma la calibración exitosa y el chequeo de salud del entorno monorepo **nodosur-erp**.
 
 ## 1. Stack y Capacidades de Prueba Verificadas
 
@@ -23,7 +23,7 @@ Las siguientes reglas están ahora estrictamente activas a lo largo de todo el c
 
 ```json
 {
-  "project": "Beast-Driven-Development",
+  "project": "nodosur-erp",
   "stack": {
     "frontend": "Next.js + TypeScript + React + Bun + TailwindCSS + Vitest",
     "backend": "Go (net/http nativo, go test)"

@@ -792,7 +792,7 @@ export function BulkImporter({ isOpen, onClose }: BulkImporterProps) {
                 type="button"
                 disabled={isProcessing}
                 onClick={handleImport}
-                className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-400 to-emerald-600 hover:from-emerald-500 hover:to-emerald-700 text-xs font-extrabold text-black shadow-lg shadow-emerald-500/5 disabled:opacity-40"
+                className="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-xs font-extrabold text-zinc-950 shadow-lg shadow-emerald-500/10 transition-all duration-200 disabled:bg-zinc-800 disabled:text-zinc-500 disabled:shadow-none disabled:cursor-not-allowed"
               >
                 Procesar e Importar
               </button>
