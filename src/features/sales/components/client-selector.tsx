@@ -222,15 +222,33 @@ export function ClientSelector() {
             <button
               type="button"
               onClick={() => setIsOpen(!isOpen)}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-850 text-xs text-white hover:border-amber-500/40 transition-colors"
+              className="w-full flex flex-col items-start px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-850 text-xs text-white hover:border-amber-500/40 transition-colors gap-1"
             >
-              <div className="flex items-center gap-2">
-                <Building2 className="w-3.5 h-3.5 text-zinc-500" />
-                <span className="font-medium truncate">
-                  {isFinalConsumer ? "Consumidor Final" : `${salesStore.clientName} (CUIT: ${salesStore.clientCuit})`}
-                </span>
+              <div className="w-full flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-3.5 h-3.5 text-zinc-500" />
+                  <span className="font-medium truncate">
+                    {isFinalConsumer ? "Consumidor Final" : `${salesStore.clientName} (CUIT: ${salesStore.clientCuit})`}
+                  </span>
+                </div>
+                <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
               </div>
-              <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
+              
+              {/* Dynamic DocTipo label so salesperson instantly knows AFIP compliance */}
+              <div className="text-[8px] font-mono text-zinc-400 bg-zinc-900 border border-zinc-850 px-1.5 py-0.5 rounded font-extrabold flex items-center gap-1 mt-0.5 select-none">
+                {(() => {
+                  const cuitVal = salesStore.clientCuit.trim();
+                  if (cuitVal === "99999999999") {
+                    return <span className="text-zinc-500">TIPO DOC: 99 (Consumidor Final / Sin Identificar)</span>;
+                  } else if (cuitVal.length === 11 && /^\d+$/.test(cuitVal)) {
+                    return <span className="text-amber-400">TIPO DOC: 80 (CUIT) — Nro: {cuitVal}</span>;
+                  } else if (cuitVal.length >= 6 && cuitVal.length <= 8 && /^\d+$/.test(cuitVal)) {
+                    return <span className="text-emerald-400">TIPO DOC: 96 (DNI) — Nro: {cuitVal}</span>;
+                  } else {
+                    return <span className="text-yellow-400 font-black">TIPO DOC: 96 (DNI) — Nro: {cuitVal}</span>;
+                  }
+                })()}
+              </div>
             </button>
 
             {isOpen && (
@@ -241,7 +259,10 @@ export function ClientSelector() {
                     isFinalConsumer ? "bg-amber-500/10 text-amber-400" : "text-zinc-300 hover:bg-zinc-900"
                   }`}
                 >
-                  <span className="font-bold">Consumidor Final (Sin Datos)</span>
+                  <div>
+                    <span className="font-bold">Consumidor Final (Sin Datos)</span>
+                    <span className="block text-[8px] text-zinc-500 font-mono">TIPO DOC: 99 (Consumidor Final)</span>
+                  </div>
                   {isFinalConsumer && <Check className="w-3 h-3" />}
                 </button>
                 
@@ -251,21 +272,25 @@ export function ClientSelector() {
                   </div>
                 )}
                 
-                {salesStore.customers.map((c) => (
-                  <button
-                    key={c.id || c.cuit}
-                    onClick={() => handleSelectCustomer(c)}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-xs flex items-center justify-between ${
-                      salesStore.clientCuit === c.cuit && !isFinalConsumer ? "bg-amber-500/10 text-amber-400" : "text-zinc-300 hover:bg-zinc-900"
-                    }`}
-                  >
-                    <div>
-                      <span className="block font-bold">{c.razon_social}</span>
-                      <span className="block text-[10px] text-zinc-500 font-mono">CUIT: {c.cuit} | {c.condicion_iva}</span>
-                    </div>
-                    {salesStore.clientCuit === c.cuit && !isFinalConsumer && <Check className="w-3 h-3" />}
-                  </button>
-                ))}
+                {salesStore.customers.map((c) => {
+                  const docTypeLabel = c.cuit.length === 11 ? "TIPO DOC: 80 (CUIT)" : "TIPO DOC: 96 (DNI)";
+                  return (
+                    <button
+                      key={c.id || c.cuit}
+                      onClick={() => handleSelectCustomer(c)}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-xs flex items-center justify-between ${
+                        salesStore.clientCuit === c.cuit && !isFinalConsumer ? "bg-amber-500/10 text-amber-400" : "text-zinc-300 hover:bg-zinc-900"
+                      }`}
+                    >
+                      <div>
+                        <span className="block font-bold">{c.razon_social}</span>
+                        <span className="block text-[9px] text-zinc-500 font-mono">CUIT/DNI: {c.cuit} | {c.condicion_iva}</span>
+                        <span className="block text-[8px] text-zinc-500 font-mono font-extrabold text-amber-500/80">{docTypeLabel}</span>
+                      </div>
+                      {salesStore.clientCuit === c.cuit && !isFinalConsumer && <Check className="w-3 h-3" />}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
