@@ -2,11 +2,7 @@ import Link from "next/link";
 
 import { AuthShell } from "@/components/auth-shell";
 import { SignUpForm } from "@/components/sign-up-form";
-import { getAuthConfig } from "@/core/auth/auth-actions";
-
 export default async function SignUpPage() {
-  const config = await getAuthConfig();
-
   return (
     <AuthShell
       footer={
@@ -19,7 +15,7 @@ export default async function SignUpPage() {
       }
     >
       <div className="space-y-6">
-        <SignUpForm providers={config.oAuthProviders ?? []} />
+        <SignUpForm providers={[]} />
       </div>
     </AuthShell>
   );

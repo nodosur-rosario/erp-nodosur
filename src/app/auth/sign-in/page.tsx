@@ -2,11 +2,7 @@ import Link from "next/link";
 
 import { AuthShell } from "@/components/auth-shell";
 import { SignInForm } from "@/components/sign-in-form";
-import { getAuthConfig } from "@/core/auth/auth-actions";
-
 export default async function SignInPage() {
-  const config = await getAuthConfig();
-
   return (
     <AuthShell
       footer={
@@ -24,7 +20,7 @@ export default async function SignInPage() {
           <p className="mt-1 text-sm text-[var(--muted-foreground)]">Ingresá con tus credenciales de operador</p>
         </div>
 
-        <SignInForm providers={config.oAuthProviders ?? []} />
+        <SignInForm providers={[]} />
       </div>
     </AuthShell>
   );
