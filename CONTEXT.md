@@ -5,7 +5,7 @@
 ## 🌐 Información del Backend
 
 - **URL Base**: `https://xrmhsluabxlrdfgqajwj.supabase.co`
-- **Fecha de Actualización**: 26/5/2026, 08:33:49 (ARG)
+- **Fecha de Actualización**: 26/5/2026, 09:53:46 (ARG)
 
 ## 📊 Estado de las Tablas y Registros (Supabase Live)
 
