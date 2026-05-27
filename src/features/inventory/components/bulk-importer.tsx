@@ -202,6 +202,7 @@ export function BulkImporter({ isOpen, onClose }: BulkImporterProps) {
       const margin = parseFloat(markupMargin) || 35;
       item.precio_minorista = cost * (1 + margin / 100);
       item.precio_mayorista = cost * (1 + (margin * 0.7) / 100); // 30% discount on margin for wholesale
+      item.alicuota_iva = 21.0; // Default VAT rate (NOT NULL constraint in database)
       
       // Resolve Brand ID
       const rawBrand = item.marca_nombre;

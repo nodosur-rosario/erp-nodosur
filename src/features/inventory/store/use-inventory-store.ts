@@ -39,6 +39,7 @@ export interface Article {
   stock_actual: number;
   stock_minimo: number;
   ubicacion_deposito: string | null;
+  alicuota_iva: number;
   created_at: string;
   marca?: {
     id: string;

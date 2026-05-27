@@ -25,6 +25,7 @@ export function AddPartDrawer({ isOpen, onClose, articleId }: AddPartDrawerProps
   const [stockActual, setStockActual] = useState("0");
   const [stockMinimo, setStockMinimo] = useState("5");
   const [ubicacionDeposito, setUbicacionDeposito] = useState("");
+  const [alicuotaIva, setAlicuotaIva] = useState(21.0);
 
   const [selectedFitments, setSelectedFitments] = useState<VehicleFitment[]>([]);
   const [desiredMargin, setDesiredMargin] = useState("35"); // 35% default margin
@@ -51,6 +52,7 @@ export function AddPartDrawer({ isOpen, onClose, articleId }: AddPartDrawerProps
       setUbicacionDeposito("");
       setSelectedFitments([]);
       setDesiredMargin("35");
+      setAlicuotaIva(21.0);
       setErrorMessage("");
       return;
     }
@@ -80,6 +82,7 @@ export function AddPartDrawer({ isOpen, onClose, articleId }: AddPartDrawerProps
           setStockActual(artData.stock_actual.toString());
           setStockMinimo(artData.stock_minimo.toString());
           setUbicacionDeposito(artData.ubicacion_deposito || "");
+          setAlicuotaIva(Number(artData.alicuota_iva) || 21.0);
 
           // Calculate initial margin
           const cost = parseFloat(artData.precio_costo) || 0;
@@ -190,6 +193,7 @@ export function AddPartDrawer({ isOpen, onClose, articleId }: AddPartDrawerProps
         stock_minimo: parseInt(stockMinimo, 10) || 5,
         ubicacion_deposito: ubicacionDeposito || null,
         company_cuit: companyCuit,
+        alicuota_iva: alicuotaIva,
       };
 
       let finalArticleId = articleId;
@@ -425,7 +429,20 @@ export function AddPartDrawer({ isOpen, onClose, articleId }: AddPartDrawerProps
                   className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-850 text-sm focus:outline-none focus:border-amber-500/40 font-mono text-emerald-400"
                 />
               </div>
-              <div className="flex flex-col gap-1.5 sm:col-span-2">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-bold text-zinc-400 uppercase">Alícuota IVA</label>
+                <select
+                  value={alicuotaIva}
+                  onChange={(e) => setAlicuotaIva(parseFloat(e.target.value))}
+                  className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-850 text-sm focus:outline-none focus:border-amber-500/40 text-zinc-300"
+                >
+                  <option value="21">21.0%</option>
+                  <option value="10.5">10.5%</option>
+                  <option value="27">27.0%</option>
+                  <option value="0">0.0% (Exento)</option>
+                </select>
+              </div>
+              <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] font-bold text-zinc-400 uppercase">P. Venta Minorista ($)</label>
                 <input
                   type="number"
