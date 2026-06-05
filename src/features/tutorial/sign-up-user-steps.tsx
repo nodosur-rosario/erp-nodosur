@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { TutorialStep } from "@/components/tutorial/tutorial-step";
+import { TutorialStep } from "@/features/tutorial/tutorial-step";
 
 const isVercelDeployment =
   process.env.VERCEL_ENV === "preview" || process.env.VERCEL_ENV === "production";

@@ -1,7 +1,7 @@
 import Link from "next/link";
 
-import { AuthShell } from "@/components/auth-shell";
-import { SignUpForm } from "@/components/sign-up-form";
+import { AuthShell } from "@/features/auth/components/auth-shell";
+import { SignUpForm } from "@/features/auth/components/sign-up-form";
 export default async function SignUpPage() {
   return (
     <AuthShell

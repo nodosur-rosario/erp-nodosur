@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { getOAuthUrl } from "@/core/auth/auth-actions";
-import { OAuthProviderIcon } from "@/components/oauth-provider-icon";
+import { OAuthProviderIcon } from "@/features/auth/components/oauth-provider-icon";
 
 function formatProviderLabel(provider: string) {
   return provider.charAt(0).toUpperCase() + provider.slice(1);

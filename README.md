@@ -1,113 +1,112 @@
-<h1 align="center">Next.js InsForge Starter</h1>
+<h1 align="center">ERP Nodo Sur</h1>
 
 <p align="center">
-  The fastest way to build apps with Next.js and InsForge
+  Sistema de gestión (ERP) para distribuidoras de autopartes, construido con Next.js 15, Bun, TailwindCSS y Supabase.
 </p>
 
-<p align="center">
-  <a href="#demo"><strong>Demo</strong></a> ·
-  <a href="#features"><strong>Features</strong></a> ·
-  <a href="#quick-launch"><strong>Quick launch</strong></a> ·
-  <a href="#clone-and-run-locally"><strong>Clone and run locally</strong></a> ·
-  <a href="#deploy-to-vercel"><strong>Deploy to Vercel</strong></a>
-</p>
+## Características Principales
 
-<p align="center">
-  <img alt="Next.js InsForge Starter homepage" src="./assets/nextjs-starter.png">
-</p>
-<br />
+- Arquitectura **Feature-Driven (Domain-Driven)**.
+- Stack moderno: **Next.js App Router**, **React 19**, **TypeScript** y **Bun**.
+- Backend 100% nativo y Serverless con **Supabase** (Postgres, Auth, Edge Functions).
+- Estricta integridad de datos en Postgres (SAGA patterns, validaciones contables, roles).
+- Módulo de facturación electrónica ARCA/AFIP integrado.
+- UI robusta con estado colocalizado (Zustand).
 
-## Demo
+## Requisitos Previos
 
-Check out the live demo: [demonextjs.insforge.site](https://demonextjs.insforge.site)
+Para correr este proyecto necesitás tener instalado:
+- [Bun](https://bun.sh/) (Package manager y runtime)
+- [Supabase CLI](https://supabase.com/docs/guides/cli) (Para manejar la base de datos local y remota)
+- [Docker](https://www.docker.com/) (Opcional, pero **requerido** si querés correr Supabase de forma 100% local en tu máquina)
 
-## Features
+---
 
-- Works across the [Next.js](https://nextjs.org) App Router stack
-  - App Router
-  - Client Components
-  - Server Components
-  - Route Handlers
-  - Server Actions
-  - It just works
-- [InsForge](https://insforge.dev) auth configured to use cookies across the app
-- Server-side auth actions using `@insforge/sdk`
-- Optional Google and GitHub OAuth providers
-- Starter homepage with environment setup guidance
-- Protected example route that displays the signed-in user
-- Styling with [Tailwind CSS](https://tailwindcss.com)
-- Ready for local development and Vercel deployment
+## Clonación y Configuración Inicial
 
-## Quick launch
-
-If you want the fastest path, use the InsForge CLI and follow the prompts:
+### 1. Clonar el repositorio e instalar dependencias
 
 ```bash
-npx @insforge/cli create
+git clone <URL_DEL_REPOSITORIO>
+cd ERP-Nodo-Sur
+bun install
 ```
 
-From there:
+### 2. Variables de Entorno
 
-1. Choose the Next.js starter template
-2. Follow the prompt flow to create or connect your InsForge project
-3. Let the CLI handle the initial setup
-4. Choose to deploy with [InsForge](https://insforge.dev) from the guided flow
-
-Use the sections below if you want to set up the starter manually.
-
-## Clone and run locally
-
-1. Clone this repository and move into the starter directory.
-
-```bash
-git clone https://github.com/InsForge/insforge-templates.git
-cd insforge-templates/nextjs
-```
-
-2. Install dependencies.
-
-```bash
-npm install
-```
-
-3. Go to the [InsForge dashboard](https://insforge.dev), create a project, and click **Connect** → **CLI** to get the link command:
-
-```bash
-npx @insforge/cli link --project-id <your-project-id>
-```
-
-4. Copy `.env.example` to `.env.local` and update the values with your InsForge project settings (find these in the InsForge dashboard under **Connect** → **API Keys**):
+Creá el archivo de variables de entorno locales copiando el ejemplo:
 
 ```bash
 cp .env.example .env.local
 ```
 
-Set the following values in `.env.local`:
-
+Vas a necesitar configurar tu `.env.local` con las credenciales de tu proyecto de Supabase:
 ```env
-NEXT_PUBLIC_INSFORGE_URL=https://your-project.region.insforge.app
-NEXT_PUBLIC_INSFORGE_ANON_KEY=your-anon-key
-NEXT_PUBLIC_APP_URL=https://your-project.insforge.site
+NEXT_PUBLIC_SUPABASE_URL=https://<TU_PROJECT_REF>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<TU_ANON_KEY>
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-You can find the project URL and anon key in your InsForge project settings.
+---
 
-5. Start the development server.
+## Configuración de la Base de Datos (Supabase)
+
+> **¿Cómo se "clona" la base de datos?**  
+> Todo el esquema de la base de datos (tablas, funciones de Postgres, políticas RLS, triggers SAGA, roles) vive como código adentro de la carpeta `supabase/migrations/` de este repositorio.  
+> Al correr los comandos de Supabase, el CLI lee esos archivos y recrea la base de datos exacta para vos de forma automática.
+
+Tenés dos opciones para trabajar con la base de datos: **Local** o **Remota**.
+
+### Opción A: Desarrollo 100% Local (Recomendado)
+Esto levanta un contenedor Docker con Postgres, Auth y el Studio de Supabase en tu máquina. Al iniciarse, **aplica automáticamente todas las migraciones** del proyecto.
 
 ```bash
-npm run dev
+# Iniciar la base de datos local (requiere Docker abierto)
+npx supabase start
+
+# (Opcional) Si en el futuro descargás nuevas migraciones del repo:
+npx supabase db reset
 ```
 
-The starter should now be running on [localhost:3000](http://localhost:3000).
+### Opción B: Conectarse a un Proyecto Remoto en Supabase
+Si creaste un proyecto vacío en [supabase.com](https://supabase.com/dashboard) y querés impactar la base de datos ahí:
 
-## Deploy to Vercel
+```bash
+# 1. Iniciar sesión en el CLI
+npx supabase login
 
-Click [Deploy with Vercel](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FInsForge%2Finsforge-templates%2Ftree%2Fmain&root-directory=nextjs&project-name=insforge-nextjs-starter&repository-name=insforge-nextjs-starter&env=NEXT_PUBLIC_INSFORGE_URL,NEXT_PUBLIC_INSFORGE_ANON_KEY,NEXT_PUBLIC_APP_URL&envDescription=Connect%20your%20InsForge%20project%20URL%2C%20anon%20key%2C%20and%20app%20URL.&external-id=https%3A%2F%2Fgithub.com%2FInsForge%2Finsforge-templates%2Ftree%2Fmain%2Fnextjs&demo-title=Next.js%20InsForge%20Starter&demo-description=A%20clean%20Next.js%20starter%20with%20InsForge%20auth%20and%20Tailwind%20CSS.&demo-image=https%3A%2F%2Fraw.githubusercontent.com%2FInsForge%2Finsforge-templates%2Fmain%2Fnextjs%2Fassets%2Fnextjs-starter.png), then fill in the required environment variables during the setup flow:
+# 2. Vincular el repositorio a tu proyecto en la nube
+npx supabase link --project-ref <TU_PROJECT_REF>
 
-- `NEXT_PUBLIC_INSFORGE_URL`
-- `NEXT_PUBLIC_INSFORGE_ANON_KEY`
-- `NEXT_PUBLIC_APP_URL` with your production Vercel URL, for example `https://your-project.vercel.app`
+# 3. Empujar todo el esquema de BD (crea las tablas, funciones y roles)
+npx supabase db push
+```
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FInsForge%2Finsforge-templates%2Ftree%2Fmain&root-directory=nextjs&project-name=insforge-nextjs-starter&repository-name=insforge-nextjs-starter&env=NEXT_PUBLIC_INSFORGE_URL,NEXT_PUBLIC_INSFORGE_ANON_KEY,NEXT_PUBLIC_APP_URL&envDescription=Connect%20your%20InsForge%20project%20URL%2C%20anon%20key%2C%20and%20app%20URL.&external-id=https%3A%2F%2Fgithub.com%2FInsForge%2Finsforge-templates%2Ftree%2Fmain%2Fnextjs&demo-title=Next.js%20InsForge%20Starter&demo-description=A%20clean%20Next.js%20starter%20with%20InsForge%20auth%20and%20Tailwind%20CSS.&demo-image=https%3A%2F%2Fraw.githubusercontent.com%2FInsForge%2Finsforge-templates%2Fmain%2Fnextjs%2Fassets%2Fnextjs-starter.png)
+### Exportar un volcado exacto del esquema (DB Dump)
+Si en algún momento hacés cambios directamente desde el Dashboard de Supabase (Postgres) y necesitás "bajarlos" a código, o simplemente querés generar un archivo `schema.sql` maestro que sea una foto exacta de la base de datos actual:
 
-The above will also clone the starter kit to your GitHub, so you can clone it locally and continue development there.
+```bash
+# Exportar el esquema remoto a un archivo local (asegurate de haber ejecutado 'supabase link' antes)
+npx supabase db dump --linked -f supabase/schema.sql
+```
+Este archivo te sirve como backup o como referencia completa de todas tus tablas, funciones y RLS.
+
+---
+
+## Levantar el Servidor de Desarrollo
+
+Una vez que las dependencias están instaladas y la base de datos está corriendo (y tus variables de entorno configuradas), levantá el frontend:
+
+```bash
+bun run dev
+```
+
+El ERP ya debería estar corriendo en [http://localhost:3000](http://localhost:3000).
+
+## Testing
+
+El proyecto corre bajo la disciplina de *Strict TDD*. Para correr la suite de pruebas unitarias y de integración de Vitest:
+
+```bash
+bun run test
+```

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 
-import { OAuthProviderButtons } from "@/components/oauth-provider-buttons";
+import { OAuthProviderButtons } from "@/features/auth/components/oauth-provider-buttons";
 import { signIn } from "@/core/auth/auth-actions";
 
 export function SignInForm({ providers }: { providers: string[] }) {

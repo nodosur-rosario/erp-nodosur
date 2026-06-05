@@ -83,3 +83,22 @@ node_modules/
 .gemini/settings.json
 
 .vercel
+
+# =========================================
+# ERP Nodo Sur - Cleanup Rules
+# =========================================
+
+# Local AI Caches and Memories
+.engram/
+.openspec/
+
+# Reports and Artefacts
+artifacts/
+scratch/
+test-results/
+playwright-report/
+.playwright-mcp/
+
+# Local Dump / Suspicious folders
+.json/
+exclesycsv/

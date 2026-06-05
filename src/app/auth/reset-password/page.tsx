@@ -1,7 +1,7 @@
 import Link from "next/link";
 
-import { AuthShell } from "@/components/auth-shell";
-import { ResetPasswordForm } from "@/components/reset-password-form";
+import { AuthShell } from "@/features/auth/components/auth-shell";
+import { ResetPasswordForm } from "@/features/auth/components/reset-password-form";
 
 export default function ResetPasswordPage() {
   return (

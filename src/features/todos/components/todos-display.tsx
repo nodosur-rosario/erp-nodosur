@@ -1,8 +1,8 @@
 import { getAccessToken } from "@/core/auth/auth-cookies";
 import { createSupabaseServerClient } from "@/core/api/supabase";
-import { TodoSetupSteps, DebugPromptBlock } from "@/components/tutorial/todo-setup-steps";
-import { AddTodoForm } from "@/components/add-todo-form";
-import { TodoItem } from "@/components/todo-item";
+import { TodoSetupSteps, DebugPromptBlock } from "@/features/tutorial/todo-setup-steps";
+import { AddTodoForm } from "@/features/todos/components/add-todo-form";
+import { TodoItem } from "@/features/todos/components/todo-item";
 
 interface Todo {
   id: number;

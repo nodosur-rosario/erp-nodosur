@@ -1,6 +1,6 @@
 import Image from "next/image";
 
-import { NextLogo } from "@/components/next-logo";
+import { NextLogo } from "@/core/components/layout/next-logo";
 
 export function Hero() {
   return (

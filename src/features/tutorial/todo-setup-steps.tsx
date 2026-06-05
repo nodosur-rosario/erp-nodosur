@@ -1,6 +1,6 @@
-import { DashboardLink } from "@/components/tutorial/dashboard-link";
-import { PromptBlock } from "@/components/tutorial/prompt-block";
-import { RefreshButton } from "@/components/refresh-button";
+import { DashboardLink } from "@/features/tutorial/dashboard-link";
+import { PromptBlock } from "@/features/tutorial/prompt-block";
+import { RefreshButton } from "@/core/components/layout/refresh-button";
 
 const linkProjectPrompt = `npx @insforge/cli link`.trim();
 

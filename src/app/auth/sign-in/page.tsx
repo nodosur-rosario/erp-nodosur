@@ -1,7 +1,7 @@
 import Link from "next/link";
 
-import { AuthShell } from "@/components/auth-shell";
-import { SignInForm } from "@/components/sign-in-form";
+import { AuthShell } from "@/features/auth/components/auth-shell";
+import { SignInForm } from "@/features/auth/components/sign-in-form";
 export default async function SignInPage() {
   return (
     <AuthShell

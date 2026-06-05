@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { getCurrentViewer } from "@/core/auth/auth-state";
 
-import { LogoutButton } from "@/components/logout-button";
+import { LogoutButton } from "@/features/auth/components/logout-button";
 
 export async function AuthButton() {
   const viewer = await getCurrentViewer();

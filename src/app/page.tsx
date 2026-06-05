@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getCurrentViewer } from "@/core/auth/auth-state";
-import { SiteShell } from "@/components/site-shell";
-import { LogoutButton } from "@/components/logout-button";
+import { SiteShell } from "@/core/components/layout/site-shell";
+import { LogoutButton } from "@/features/auth/components/logout-button";
 import { 
   Truck, 
   Boxes, 

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { OAuthProviderButtons } from "@/components/oauth-provider-buttons";
+import { OAuthProviderButtons } from "@/features/auth/components/oauth-provider-buttons";
 import { resendVerification, signUp, verifyEmail } from "@/core/auth/auth-actions";
 
 export function SignUpForm({ providers }: { providers: string[] }) {
