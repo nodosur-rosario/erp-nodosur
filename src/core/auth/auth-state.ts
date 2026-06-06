@@ -1,6 +1,15 @@
 import "server-only";
 
-import type { UserSchema } from "@insforge/sdk";
+import type { User } from "@supabase/supabase-js";
+
+export type UserSchema = User & {
+  profile?: {
+    name?: string;
+    avatar_url?: string;
+    role?: string;
+  };
+  role?: string;
+};
 
 import { getAccessToken, getRefreshToken } from "@/core/auth/auth-cookies";
 import { createSupabaseServerClient } from "@/core/api/supabase";
