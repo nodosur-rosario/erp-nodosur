@@ -1,5 +1,5 @@
 {
-  "name": "testnextjs",
+  "name": "erp-nodosur",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -13,7 +13,6 @@
     "update-context": "node scripts/update-context.js"
   },
   "dependencies": {
-    "@insforge/sdk": "^1.2.2",
     "@supabase/supabase-js": "^2.49.1",
     "cockatiel": "^3.2.1",
     "lucide-react": "^1.16.0",
