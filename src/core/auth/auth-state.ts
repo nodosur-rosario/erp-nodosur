@@ -42,7 +42,7 @@ function mapUserToViewer(user: UserSchema | null | undefined): AuthViewer {
   return {
     isAuthenticated: true,
     id: user.id,
-    email: user.email,
+    email: user.email ?? null,
     name: user.profile?.name?.trim() || null,
     avatarUrl: user.profile?.avatar_url?.trim() || null,
     role: (user as any).role || (user.profile as any)?.role || "pending",
