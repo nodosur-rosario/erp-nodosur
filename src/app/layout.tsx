@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "sonner";
+import { AppQueryProvider } from "@/core/providers/query-provider";
 
 const themeInitScript = `
 (() => {
@@ -34,7 +35,9 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className="antialiased">
-        {children}
+        <AppQueryProvider>
+          {children}
+        </AppQueryProvider>
         <Toaster
           position="top-right"
           theme="dark"

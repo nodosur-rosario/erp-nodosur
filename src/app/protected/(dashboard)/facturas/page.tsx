@@ -27,39 +27,21 @@ import { useDateRangeStore } from "@/core/store/date-range-store";
 import { arDateToUTCBounds } from "@/core/utils/timezone-utils";
 import { generateLibroIvaVentas, reconcileAfip } from "@/features/arca/actions";
 import type { ReconciliationComparisonRow } from "@/features/arca/actions";
+import { useGetVouchers, type Voucher, type VoucherItem } from "@/features/sales/hooks/use-vouchers";
 
-interface VoucherItem {
-  codigo: string;
-  descripcion: string;
-  cantidad: number;
-  precio_unitario: number;
-  alicuota_iva: number;
-  subtotal: number;
-}
 
-interface Voucher {
-  id: string;
-  type: string;
-  company_cuit: string;
-  client_cuit: string;
-  client_name: string;
-  net_amount: string | number;
-  iva_amount: string | number;
-  total_amount: string | number;
-  cae: string;
-  cae_vto: string;
-  qr_link: string;
-  items: VoucherItem[] | string | null;
-  created_at: string;
-  canal?: string;
-}
 
 export default function FacturasPage() {
   const activeCompany = useCompanyStore((state) => state.currentCompany);
   const showCajaNegra = useSecretStore((state) => state.showCajaNegra);
   const { startDate, endDate } = useDateRangeStore();
-  const [vouchers, setVouchers] = useState<Voucher[]>([]);
-  const [loading, setLoading] = useState(true);
+  
+  const { data: vouchers = [], isLoading: loading, refetch } = useGetVouchers({
+    companyCuit: activeCompany?.cuit,
+    startDate,
+    endDate,
+    showCajaNegra
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [selectedVoucher, setSelectedVoucher] = useState<Voucher | null>(null);
@@ -150,43 +132,7 @@ export default function FacturasPage() {
     reader.readAsText(file, "UTF-8");
   };
 
-  // Load vouchers from database
-  const fetchVouchers = async () => {
-    if (!activeCompany) return;
-    setLoading(true);
-    try {
-      const client = getSupabaseClient();
-      
-      // Calculate Argentina GMT-3 timezone bounds normalized to UTC
-      const { startISO } = arDateToUTCBounds(startDate);
-      const { endISO } = arDateToUTCBounds(endDate);
 
-      let query = client.database
-        .from("arca_vouchers")
-        .select("*")
-        .eq("company_cuit", activeCompany.cuit)
-        .gte("created_at", startISO)
-        .lte("created_at", endISO);
-
-      if (!showCajaNegra) {
-        query = query.eq("canal", "oficial");
-      }
-
-      const { data, error } = await query.order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setVouchers((data as Voucher[]) || []);
-    } catch (err: any) {
-      console.error("Error loading vouchers:", err);
-      toast.error("No se pudieron cargar los comprobantes.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchVouchers();
-  }, [activeCompany, showCajaNegra, startDate, endDate]);
 
   // Filters and search logic
   const filteredVouchers = vouchers.filter((v) => {
@@ -239,7 +185,7 @@ export default function FacturasPage() {
           </p>
         </div>
         <button 
-          onClick={fetchVouchers}
+          onClick={() => refetch()}
           className="px-4 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-bold text-zinc-300 hover:text-white hover:bg-zinc-800 transition-all shadow-lg shadow-black/10 self-start"
         >
           Sincronizar AFIP
