@@ -322,6 +322,8 @@ export default function FacturasPage() {
             {searchQuery && (
               <button
                 type="button"
+                aria-label="Limpiar búsqueda"
+                title="Limpiar búsqueda"
                 onClick={() => setSearchQuery("")}
                 className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-0.5 hover:bg-zinc-800 text-zinc-400"
               >
@@ -557,6 +559,8 @@ export default function FacturasPage() {
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-1.5">Mes Fiscal</label>
                   <select
+                    aria-label="Seleccionar mes"
+                    title="Seleccionar mes"
                     value={selectedMonth}
                     onChange={(e) => setSelectedMonth(Number(e.target.value))}
                     className="w-full rounded-xl border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-amber-500/50"
@@ -572,6 +576,8 @@ export default function FacturasPage() {
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-1.5">Año Fiscal</label>
                   <select
+                    aria-label="Seleccionar año"
+                    title="Seleccionar año"
                     value={selectedYear}
                     onChange={(e) => setSelectedYear(Number(e.target.value))}
                     className="w-full rounded-xl border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-amber-500/50"
@@ -733,6 +739,8 @@ export default function FacturasPage() {
                   <span>Imprimir A4</span>
                 </button>
                 <button
+                  aria-label="Cerrar vista previa"
+                  title="Cerrar vista previa"
                   onClick={() => setSelectedVoucher(null)}
                   className="p-2 rounded-xl hover:bg-zinc-800 text-zinc-500 hover:text-white transition-all"
                 >
@@ -881,6 +889,7 @@ export default function FacturasPage() {
                 {/* QR Code (RG 4892) */}
                 {selectedVoucher.qr_link && selectedVoucher.qr_link !== "—" && (
                   <div className="flex flex-col items-center gap-1 bg-white p-1.5 rounded border border-zinc-300 shrink-0">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img 
                       src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(selectedVoucher.qr_link)}`} 
                       alt="Código QR Oficial AFIP"
